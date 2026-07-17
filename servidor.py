@@ -43,11 +43,20 @@ async def save_ranking_db(data):
     except Exception as e: print("❌ Erro Mongo Ranking:", e)
 
 # 3. PONTE INVISÍVEL (Para não ter de reescrever o resto do jogo todo)
-def save_contas(data):
-    asyncio.create_task(save_contas_db(data))
+# substitua suas funções atuais por essas
+async def save_contas(data):
+    try: 
+        await db.sistema.update_one({"_id": "contas"}, {"$set": {"json": data}}, upsert=True)
+        print("✅ Contas salvas")
+    except Exception as e: 
+        print("❌ Erro Mongo Contas:", e)
 
-def save_ranking(data):
-    asyncio.create_task(save_ranking_db(data))
+async def save_ranking(data):
+    try: 
+        await db.sistema.update_one({"_id": "ranking"}, {"$set": {"json": data}}, upsert=True)
+        print("✅ Ranking salvo")
+    except Exception as e: 
+        print("❌ Erro Mongo Ranking:", e)
 
 # 4. FUNÇÃO QUE PUXA TUDO QUANDO O SERVIDOR LIGA
 async def init_mongodb():
@@ -62,12 +71,13 @@ async def init_mongodb():
             ranking_global = doc_r.get("json", {})
             if ranking_global.get('semana') != get_week_id():
                 ranking_global = {'semana': get_week_id(), 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
-                save_ranking(ranking_global)
+                await save_ranking(ranking_global)
         else:
             ranking_global['semana'] = get_week_id()
         print("✅ MongoDB Conectado com Sucesso! Dados carregados.")
     except Exception as e:
         print("💀 ERRO CRÍTICO AO LIGAR MONGODB:", e)
+        
 
 def update_ranking_gol(nome, qtd=1):
     global ranking_global
@@ -75,21 +85,21 @@ def update_ranking_gol(nome, qtd=1):
     nome=nome.upper()[:12]
     ranking_global['artilheiros'][nome]=ranking_global['artilheiros'].get(nome,0)+qtd
     ranking_global['jogos'][nome]=ranking_global['jogos'].get(nome,0)+0
-    save_ranking(ranking_global)
+    asyncio.create_task(save_ranking(ranking_global))
 
 def update_ranking_assist(nome, qtd=1):
     global ranking_global
     if not nome or nome=='BOT GK': return
     nome=nome.upper()[:12]
     ranking_global['assistentes'][nome]=ranking_global['assistentes'].get(nome,0)+qtd
-    save_ranking(ranking_global)
+    asyncio.create_task(save_ranking(ranking_global))
 
 def update_ranking_mvp(nome, pontos=1):
     global ranking_global
     if not nome or nome=='BOT GK': return
     nome=nome.upper()[:12]
     ranking_global['mvp'][nome]=ranking_global['mvp'].get(nome,0)+pontos
-    save_ranking(ranking_global)
+    asyncio.create_task(save_ranking(ranking_global))
 
 def update_ranking_jogo(nomes):
     global ranking_global
@@ -97,7 +107,7 @@ def update_ranking_jogo(nomes):
         if not n or n=='BOT GK': continue
         n=n.upper()[:12]
         ranking_global['jogos'][n]=ranking_global['jogos'].get(n,0)+1
-    save_ranking(ranking_global)
+    asyncio.create_task(save_ranking(ranking_global))
 
 def update_ranking_vitoria(nome, qtd=1):
     global ranking_global
@@ -105,7 +115,7 @@ def update_ranking_vitoria(nome, qtd=1):
     nome=nome.upper()[:12]
     if 'vitorias' not in ranking_global: ranking_global['vitorias']={}
     ranking_global['vitorias'][nome]=ranking_global['vitorias'].get(nome,0)+qtd
-    save_ranking(ranking_global)
+    asyncio.create_task(save_ranking(ranking_global))
 
 def update_ranking_derrota(nome, qtd=1):
     global ranking_global
@@ -113,7 +123,7 @@ def update_ranking_derrota(nome, qtd=1):
     nome=nome.upper()[:12]
     if 'derrotas' not in ranking_global: ranking_global['derrotas']={}
     ranking_global['derrotas'][nome]=ranking_global['derrotas'].get(nome,0)+qtd
-    save_ranking(ranking_global)
+    asyncio.create_task(save_ranking(ranking_global))
 
 def update_ranking_empate(nome, qtd=1):
     global ranking_global
@@ -121,7 +131,7 @@ def update_ranking_empate(nome, qtd=1):
     nome=nome.upper()[:12]
     if 'empates' not in ranking_global: ranking_global['empates']={}
     ranking_global['empates'][nome]=ranking_global['empates'].get(nome,0)+qtd
-    save_ranking(ranking_global)
+    asyncio.create_task(save_ranking(ranking_global))
 
 def update_ranking_resultados(jogo, vencedor):
     global ranking_global
