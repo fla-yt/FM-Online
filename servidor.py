@@ -1446,6 +1446,7 @@ async def mandar_emote(sid, dados):
             jogo['jogadores'][sid]['emote_timer'] = 120
 
 async def start(app):
+    print("🚀 Iniciando a ligação ao MongoDB...")
     await init_mongodb() # <-- Espera o Banco de Dados carregar primeiro!
     app['f']=asyncio.create_task(loop_fisica())
     app['t']=asyncio.create_task(loop_tempo())
