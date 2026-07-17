@@ -58,22 +58,29 @@ async def save_ranking(data):
     except Exception as e: 
         print("❌ Erro Mongo Ranking:", e)
 
-# 4. FUNÇÃO QUE PUXA TUDO QUANDO O SERVIDOR LIGA
 async def init_mongodb():
     global contas_global, ranking_global
     print("📡 A ligar ao MongoDB Atlas...")
     try:
         doc_c = await db.sistema.find_one({"_id": "contas"})
-        if doc_c: contas_global = doc_c.get("json", {})
-        
+        if doc_c: 
+            contas_global = doc_c.get("json", {})
+        else:
+            # FORÇA CRIAR A COLEÇÃO NA PRIMEIRA VEZ
+            print("Criando coleção contas pela primeira vez...")
+            await db.sistema.update_one({"_id": "contas"}, {"$set": {"json": {}}}, upsert=True)
+
         doc_r = await db.sistema.find_one({"_id": "ranking"})
         if doc_r: 
             ranking_global = doc_r.get("json", {})
             if ranking_global.get('semana') != get_week_id():
                 ranking_global = {'semana': get_week_id(), 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
-                await save_ranking(ranking_global)
+                await save_ranking_db(ranking_global)
         else:
             ranking_global['semana'] = get_week_id()
+            print("Criando coleção ranking pela primeira vez...")
+            await db.sistema.update_one({"_id": "ranking"}, {"$set": {"json": ranking_global}}, upsert=True)
+            
         print("✅ MongoDB Conectado com Sucesso! Dados carregados.")
     except Exception as e:
         print("💀 ERRO CRÍTICO AO LIGAR MONGODB:", e)
