@@ -1058,7 +1058,7 @@ async def login(sid, dados):
         if nick not in contas_global:
             await sio.emit('login_erro', {'msg': f'Conta {nick} não existe! Vá em CRIAR CONTA.'}, to=sid); return
         if contas_global[nick].get('senha') != senha:
-            await sio.emit('login_erro', {'msg': 'Senha incorreta! Veja contas.json ou /admin/contas'}, to=sid); return
+            await sio.emit('login_erro', {'msg': 'Senha incorreta!'}, to=sid); return
         logados[sid] = nick
         contas_global[nick]['ultimo_login'] = datetime.now().isoformat()
         save_contas(contas_global)
