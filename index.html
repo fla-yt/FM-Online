@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FM Online - Futgraal Manager (online)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#0a0a0a;font-family:'Montserrat',sans-serif;touch-action:none;color:white}
+canvas{display:block;margin:auto;margin-top:68px;box-shadow:0 12px 32px rgba(0,0,0,0.9);border-radius:12px;transition:transform 0.12s}
+canvas.shake{animation:shake 0.45s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes shake{10%,90%{transform:translate3d(-3px,0,0)}20%,80%{transform:translate3d(5px,2px,0)}30%,50%,70%{transform:translate3d(-7px,-2px,0)}40%,60%{transform:translate3d(7px,1px,0)}}
+#placar-tv{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,#1f1f1f,#000);border:1px solid #333;border-radius:14px;padding:8px 16px;display:none;align-items:center;gap:14px;z-index:80;min-width:380px;justify-content:space-between;box-shadow:0 8px 20px rgba(0,0,0,0.7)}
+#placar-tv.visivel{display:flex}
+.escudo{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;border:2px solid #fff}
+.time-box{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.placar-nums{font-size:26px;font-weight:900;letter-spacing:1px}
+#tempo-tv{font-size:13px;font-weight:800;color:#00ffcc;background:rgba(0,255,204,0.12);padding:5px 11px;border-radius:20px;border:1px solid rgba(0,255,204,0.28)}
+#tempo-tv.piscando{animation:piscar 0.55s infinite;color:#ff3b30;border-color:#ff3b30;background:rgba(255,59,48,0.18)}
+@keyframes piscar{0%,100%{opacity:1}50%{opacity:0.25}}
+#controles{display:none;width:100%;height:190px;position:absolute;bottom:12px;left:0;pointer-events:none}
+#joystick-zone{width:44%;height:100%;position:relative;pointer-events:auto}
+.botao-acao{border-radius:50%;font-weight:900;color:white;position:absolute;pointer-events:auto;cursor:pointer;border:3px solid rgba(0,0,0,0.28);box-shadow:0 8px 16px rgba(0,0,0,0.55);-webkit-tap-highlight-color:transparent;user-select:none}
+#btn-chute{width:92px;height:92px;background:linear-gradient(180deg,#ff5a4f,#cc1a0f);right:28px;bottom:44px;font-size:15px;z-index:5}
+#btn-chute.carregando{transform:scale(1.08);box-shadow:0 0 22px rgba(255,59,48,0.9)}
+#btn-correr{width:74px;height:74px;background:linear-gradient(180deg,#2a8cff,#0050c0);right:132px;bottom:16px;font-size:12px}
+.botao-acao:active{transform:scale(0.93)}
+#menu-emotes {
+  position: fixed !important; 
+  right: 25px; 
+  bottom: 140px; /* Empurra de baixo para cima, ficando logo acima do botão vermelho */
+  display: none; 
+  flex-direction: column; 
+  gap: 10px; 
+  z-index: 100; 
+  pointer-events: auto;
+}
+.btn-emote {
+  background: rgba(0,0,0,0.6); 
+  border: 2px solid rgba(255,255,255,0.2); 
+  border-radius: 50%; 
+  width: 45px; 
+  height: 45px; 
+  font-size: 22px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer; 
+  transition: transform 0.1s; 
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+.btn-emote:active { 
+  transform: scale(0.8); 
+  background: rgba(0,255,204,0.4); 
+}
+#barra-forca-wrap{position:absolute;right:28px;bottom:146px;width:92px;height:12px;background:rgba(0,0,0,0.65);border-radius:8px;border:1px solid rgba(255,255,255,0.22);overflow:hidden;display:none;pointer-events:none}
+#barra-forca-fill{height:100%;width:0%;background:linear-gradient(90deg,#00ffcc,#ffea00,#ff3b30);transition:width 0.06s linear}
+#lobby,#sala-espera{position:absolute;inset:0;background:radial-gradient(1200px 600px at 20% 10%,#2a7a2e 0%,#0f2a12 55%,#060a06 100%);display:flex;align-items:center;justify-content:center;z-index:100;padding:18px}
+#sala-espera{display:none;z-index:90}
+.painel{background:rgba(0,0,0,0.78);backdrop-filter:blur(14px);padding:28px;border-radius:20px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 28px 60px rgba(0,0,0,0.65);width:96%;max-width:960px;text-align:center;max-height:92vh;overflow-y:auto}
+.painel h1{font-size:36px;margin:0 0 14px;letter-spacing:1.5px;text-shadow:0 4px 14px rgba(0,255,200,0.45)}
+.grid-lobby{display:flex;gap:18px;flex-wrap:wrap}
+.coluna{flex:1;min-width:270px;display:flex;flex-direction:column;gap:10px;text-align:left}
+.coluna h3{margin:2px 0 6px;text-align:center;font-size:14px;letter-spacing:0.8px;opacity:0.9}
+input,select{background:rgba(255,255,255,0.09);border:2px solid rgba(255,255,255,0.18);color:white;padding:11px 13px;font-size:13.5px;border-radius:10px;outline:none;font-family:'Montserrat',sans-serif;font-weight:700;text-transform:uppercase}
+input:focus,select:focus{border-color:#00ffcc}
+select option{background:#111}
+.seletor-kits{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:4px 0}
+.kit{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:0.16s;box-shadow:0 3px 6px rgba(0,0,0,0.35)}
+.kit.ativo{border-color:#00ffcc;transform:scale(1.18)}
+#lista-salas{background:rgba(0,0,0,0.34);border-radius:10px;padding:7px;height:168px;overflow-y:auto;margin:0;list-style:none;border:1px solid rgba(255,255,255,0.08)}
+#lista-salas li{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:12.5px;border-radius:7px;margin-bottom:4px;background:rgba(255,255,255,0.02)}
+#lista-salas li:hover{background:rgba(255,255,255,0.08)}
+.badge{font-size:9.5px;padding:2px 6px;border-radius:10px;background:#00ffcc;color:#000;font-weight:900;letter-spacing:0.2px}
+.config-row{display:flex;gap:8px}
+.config-row>*{flex:1}
+.check-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);padding:9px 11px;border-radius:10px;font-size:12.5px}
+.check-row input{width:auto}
+#btn-jogar,#btn-iniciar,#btn-trocar,#btn-sair,#btn-pos,#btn-salvar{padding:12px 16px;border-radius:10px;border:none;cursor:pointer;font-weight:900;text-transform:uppercase;transition:0.16s;font-family:'Montserrat',sans-serif}
+#btn-jogar{background:#00ffcc;color:#000;font-size:17px;margin-top:10px;width:100%}
+#btn-iniciar{background:#00ffcc;color:#000;font-size:19px;flex:2}
+#btn-trocar,#btn-pos{background:rgba(255,255,255,0.14);color:white;flex:1;border:1px solid rgba(255,255,255,0.18)}
+#btn-sair{background:#ff3b30;color:white;flex:1}
+#btn-salvar{background:#ffea00;color:#000;flex:1}
+#btn-jogar:hover,#btn-iniciar:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.espera-grid{display:flex;gap:14px;margin:14px 0;text-align:left}
+.time-col{flex:1;background:rgba(255,255,255,0.05);border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,0.08);min-height:140px}
+.time-col h4{margin:0 0 8px;text-align:center;font-size:13px;letter-spacing:0.6px}
+.jogador-espera{padding:7px 9px;background:rgba(0,0,0,0.38);border-radius:8px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;border-left:3px solid #00ffcc}
+.jogador-espera.goleiro{border-left-color:#ffea00}
+.jogador-espera.dono{border-left-color:#00ffcc;box-shadow:0 0 0 1px rgba(0,255,204,0.25) inset}
+#owner-config{background:rgba(255,234,0,0.08);border:1px solid rgba(255,234,0,0.22);border-radius:12px;padding:10px;margin:10px 0;display:none;text-align:left}
+#owner-config h5{margin:0 0 8px;font-size:12px;letter-spacing:0.6px;color:#ffea00}
+.owner-row{display:flex;gap:8px;margin-bottom:6px}
+.owner-row input,.owner-row select{font-size:12px;padding:8px 10px;flex:1}
+#animacao-golo,#replay-overlay{position:absolute;inset:0;pointer-events:none;z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.22s}
+#animacao-golo.visivel,#replay-overlay.visivel{opacity:1}
+#animacao-golo{background:radial-gradient(circle,rgba(0,0,0,0.15) 0%,rgba(0,0,0,0.72) 100%)}
+.texto-golo{font-size:108px;font-weight:900;color:#fff;text-shadow:0 0 22px #ffea00,0 8px 0 #cc5500;transform:scale(0.14) rotate(-5deg);transition:transform 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
+#animacao-golo.visivel .texto-golo{transform:scale(1) rotate(0)}
+#replay-overlay{background:rgba(0,0,0,0.18)}
+.replay-tag{position:absolute;top:90px;left:50%;transform:translateX(-50%);background:#ff3b30;color:white;padding:6px 14px;border-radius:20px;font-weight:900;font-size:12px;letter-spacing:1px;box-shadow:0 4px 14px rgba(0,0,0,0.5)}
+#chat-container{position:absolute;top:86px;left:14px;width:300px;z-index:50;display:none}
+#chat-mensagens{max-height:130px;display:flex;flex-direction:column;justify-content:flex-end;margin-bottom:7px}
+.mensagem{background:rgba(0,0,0,0.6);color:white;padding:5px 9px;border-radius:6px;margin-top:4px;font-size:12.5px;animation:fadeOut 6s forwards}
+@keyframes fadeOut{0%,78%{opacity:1}100%{opacity:0}}
+#chat-input{width:100%;padding:7px;font-size:12px;background:rgba(0,0,0,0.58);border:1px solid rgba(255,255,255,0.42);color:white;border-radius:5px;outline:none}
+#status{position:absolute;top:8px;right:12px;background:rgba(0,0,0,0.7);padding:6px 11px;border-radius:20px;font-size:11px;z-index:95;border:1px solid #00ffcc;color:#00ffcc}
+#espectador-badge{position:absolute;top:44px;left:50%;transform:translateX(-50%);background:rgba(255,59,48,0.92);color:white;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:800;z-index:85;display:none;letter-spacing:0.6px}
+.jogador-ranking{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:rgba(0,0,0,0.38);border-radius:6px;margin-bottom:4px;border-left:3px solid #ffea00}
+.jogador-ranking.pos{font-weight:900;color:#ffea00;margin-right:8px}
+/* FIX CAMPO TAMANHO CERTO - inteiro visível, sem corte e sem faixa */
+#game-wrapper{
+  position:fixed !important;
+  top:52px !important; left:0 !important; right:0 !important; bottom:0 !important;
+  display:none; align-items:center; justify-content:center;
+  background:#000 !important; z-index:10; overflow:hidden;
+  padding:0 0 108px 0 !important;
+}
+body.in-game #game-wrapper{display:flex !important}
+#game-wrapper canvas{
+  width:auto !important; height:auto !important;
+  max-width:calc(100vw - 12px) !important;
+  max-height:calc(100vh - 108px) !important;
+  aspect-ratio:4/3 !important; object-fit:contain !important;
+  margin:auto !important; border-radius:8px !important;
+  border:1px solid rgba(255,255,255,0.18) !important;
+  background:#1b5e20 !important;
+  transform:translateY(-10px) !important;
+}
+#controles{
+  position:fixed !important; bottom:0 !important; left:0 !important; right:0 !important;
+  height:100px !important; background:transparent !important;
+  z-index:70 !important; pointer-events:none;
+}
+#controles .botao-acao, #joystick-zone{pointer-events:auto}
+
+
+
+/* === NOVA TELA FIM DE JOGO COM ESTATISTICAS === */
+#tela-fim-jogo{
+  display:none;
+  position:absolute;
+  inset:0;
+  background:radial-gradient(900px 600px at 50% 0%, #1a3a1d 0%, rgba(0,0,0,0.92) 60%, rgba(0,0,0,0.96) 100%);
+  backdrop-filter: blur(14px);
+  z-index:300;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  padding:18px;
+  overflow-y:auto;
+}
+.fim-container{
+  background: linear-gradient(180deg, rgba(22,22,22,0.96), rgba(0,0,0,0.98));
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:22px;
+  padding:20px 18px 18px;
+  max-width:540px;
+  width:100%;
+  box-shadow:0 24px 70px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,255,204,0.12) inset;
+  animation: fimPop 0.45s cubic-bezier(.175,.885,.32,1.275);
+  max-height: 92vh;
+  overflow-y:auto;
+}
+@keyframes fimPop{ from{transform:scale(0.86) translateY(12px); opacity:0} to{transform:scale(1) translateY(0); opacity:1} }
+.fim-header{ text-align:center; margin-bottom:6px }
+#fim-resultado{
+  font-size:34px;
+  font-weight:900;
+  margin:0;
+  letter-spacing:1.5px;
+  text-shadow:0 4px 14px rgba(0,255,200,0.45);
+  text-transform:uppercase;
+}
+.fim-tipo-badge{
+  display:inline-block;
+  margin-top:8px;
+  padding:5px 14px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.2px;
+}
+.fim-tipo-vitoria{ background:#00ffcc; color:#000; box-shadow:0 4px 14px rgba(0,255,204,0.35) }
+.fim-tipo-empate{ background:#ffea00; color:#000; box-shadow:0 4px 14px rgba(255,234,0,0.35) }
+.fim-placar-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+  border-radius:16px;
+  padding:16px 12px;
+  margin:16px 0 14px;
+  border:1px solid rgba(255,255,255,0.09);
+}
+.fim-time{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  flex:1;
+  min-width:0;
+}
+.fim-time-nome{
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:0.6px;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:110px;
+}
+.escudo-grande{
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:19px;
+  border:3px solid rgba(255,255,255,0.9);
+  box-shadow:0 6px 16px rgba(0,0,0,0.5);
+  flex-shrink:0;
+}
+.fim-placar-central{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  flex:0 0 110px;
+}
+#fim-placar{
+  font-size:44px;
+  font-weight:900;
+  color:#00ffcc;
+  letter-spacing:1px;
+  line-height:1;
+  text-shadow:0 2px 12px rgba(0,255,204,0.5);
+}
+.fim-vs{ font-size:10px; opacity:0.5; letter-spacing:2px; margin-top:4px; font-weight:700 }
+.fim-stats{
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  margin-top:8px;
+}
+.stat-group-title{
+  font-size:10px;
+  opacity:0.6;
+  letter-spacing:1.2px;
+  text-align:center;
+  margin:8px 0 2px;
+  font-weight:800;
+}
+.stat-row{
+  display:grid;
+  grid-template-columns: 52px 1fr 52px;
+  align-items:center;
+  gap:8px;
+  background: rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px;
+  padding:10px 10px;
+}
+.stat-row .stat-val{
+  font-size:17px;
+  font-weight:900;
+  text-align:center;
+}
+.stat-row .stat-val.esq{ color:#00ffcc }
+.stat-row .stat-val.dir{ color:#ff7a7a }
+.stat-center{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:center;
+}
+.stat-label{
+  font-size:10px;
+  font-weight:800;
+  opacity:0.65;
+  letter-spacing:0.8px;
+  text-transform:uppercase;
+}
+.stat-bar-wrap{
+  width:100%;
+  height:7px;
+  background: rgba(255,255,255,0.12);
+  border-radius:10px;
+  overflow:hidden;
+  display:flex;
+}
+.stat-bar-fill-esq{ height:100%; background: linear-gradient(90deg, #00ffcc, #00c2a0); transition: width 0.6s ease }
+.stat-bar-fill-dir{ height:100%; background: linear-gradient(90deg, #ff5a5a, #cc1a0f); transition: width 0.6s ease }
+.fim-posse{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  background: rgba(0,255,204,0.06);
+  border:1px solid rgba(0,255,204,0.14);
+  border-radius:12px;
+  padding:10px 12px;
+  margin-top:6px;
+}
+.fim-artilharia{
+  margin-top:14px;
+  background: rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px;
+  padding:12px 12px 8px;
+}
+.fim-artilharia h4{
+  margin:0 0 8px;
+  font-size:11px;
+  letter-spacing:1px;
+  opacity:0.7;
+  text-align:center;
+  font-weight:800;
+}
+.jogador-stat{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:12.5px;
+  padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.jogador-stat:last-child{ border-bottom:none }
+.jogador-stat .js-nome{ font-weight:700; display:flex; align-items:center; gap:6px }
+.jogador-stat .js-gols{ background:#00ffcc; color:#000; padding:2px 8px; border-radius:10px; font-weight:900; font-size:11px }
+#btn-voltar-sala{
+  margin-top:18px;
+  width:100%;
+  padding:14px;
+  font-size:15px;
+  background: linear-gradient(180deg, #00ffcc, #00cfaa);
+  color:#000;
+  border:none;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:900;
+  box-shadow:0 10px 24px rgba(0,255,204,0.35);
+  letter-spacing:0.6px;
+  font-family:'Montserrat',sans-serif;
+  text-transform:uppercase;
+  transition: transform 0.12s;
+}
+#btn-voltar-sala:active{ transform:scale(0.97) }
+@media(max-width:480px){
+  .fim-container{ padding:16px 12px }
+  #fim-resultado{ font-size:28px }
+  #fim-placar{ font-size:38px }
+  .escudo-grande{ width:48px; height:48px; font-size:16px }
+}
+
+
+/* === TELA LOGIN / CRIAR CONTA === */
+#tela-login{
+  position:absolute;
+  inset:0;
+  background: radial-gradient(1200px 700px at 50% 0%, #162a18 0%, #0a0a0a 75%);
+  z-index:500;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.login-card{
+  background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%);
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius:20px;
+  padding:16px 18px 14px;
+  width:100%;
+  max-width:340px;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.9);
+}
+.login-tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:14px;
+}
+.login-tab{
+  flex:1;
+  padding:10px 8px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.65);
+  font-weight:800;
+  font-size:11px;
+  letter-spacing:0.6px;
+  cursor:pointer;
+  font-family:'Montserrat',sans-serif;
+}
+.login-tab.ativo{
+  background:#00ffcc;
+  color:#000;
+  border-color:#00ffcc;
+  box-shadow:0 4px 14px rgba(0,255,204,0.35);
+}
+.login-card h1{ margin:6px 0 4px; font-size:22px; font-weight:900; letter-spacing:0.8px; }
+.login-card .sub{ font-size:11px; opacity:0.55; margin-bottom:14px; font-weight:700; }
+.login-input{
+  width:100%;
+  background: #1f1f1f;
+  border:2px solid rgba(255,255,255,0.08);
+  color:white;
+  padding:13px 12px;
+  font-size:13px;
+  border-radius:12px;
+  outline:none;
+  font-family:'Montserrat',sans-serif;
+  font-weight:800;
+  text-align:center;
+  letter-spacing:0.6px;
+  margin-bottom:10px;
+  text-transform:uppercase;
+}
+.login-input:focus{ border-color:#00ffcc; background:#252525; }
+.login-input.senha{ text-transform:none; }
+.login-btn{
+  width:100%;
+  padding:14px;
+  background:#00ffcc;
+  color:#000;
+  border:none;
+  border-radius:12px;
+  font-weight:900;
+  font-size:13px;
+  cursor:pointer;
+  font-family:'Montserrat',sans-serif;
+}
+.login-btn:active{ transform:scale(0.97); }
+.login-btn:disabled{ opacity:0.6; }
+.login-card small{ display:block; margin-top:10px; font-size:10px; opacity:0.38; line-height:1.3; }
+#login-erro{
+  margin-top:10px; padding:8px 10px;
+  background: rgba(255,59,48,0.14); border:1px solid rgba(255,59,48,0.28);
+  border-radius:8px; color:#ff8a8a; font-size:11px; font-weight:700; display:none;
+}
+#login-sucesso{
+  margin-top:10px; padding:8px 10px;
+  background: rgba(0,255,204,0.10); border:1px solid rgba(0,255,204,0.22);
+  border-radius:8px; color:#00ffcc; font-size:11px; font-weight:700; display:none;
+}
+
+
+/* === FADE ANIMATIONS - FIM DO CORTE SECO === */
+@keyframes fadeInSoft{ from{opacity:0; transform:translateY(14px) scale(0.97)} to{opacity:1; transform:translateY(0) scale(1)} }
+@keyframes fadeOutSoft{ from{opacity:1} to{opacity:0} }
+@keyframes slideDown{ from{opacity:0; transform:translateY(-16px)} to{opacity:1; transform:translateY(0)} }
+.painel{ animation: fadeInSoft 0.55s cubic-bezier(.16,1,.3,1) both }
+#lobby, #sala-espera, #tela-login{ transition: opacity 0.35s ease, backdrop-filter 0.35s ease }
+#lobby.fade-out, #sala-espera.fade-out, #tela-login.fade-out{ opacity:0; pointer-events:none }
+#placar-tv{ transition: transform 0.35s cubic-bezier(.16,1,.3,1), opacity 0.3s ease }
+#placar-tv.visivel{ animation: slideDown 0.45s cubic-bezier(.16,1,.3,1) }
+#animacao-golo{ transition: opacity 0.45s ease, backdrop-filter 0.45s ease }
+#animacao-golo.visivel{ backdrop-filter: blur(6px) }
+#tela-fim-jogo{ transition: opacity 0.45s ease; opacity:0 }
+#tela-fim-jogo.visivel{ display:flex !important; opacity:1 }
+#tela-fim-jogo .fim-container{ animation: fadeInSoft 0.6s cubic-bezier(.16,1,.3,1) 0.1s both }
+
+/* === PERFIL MODAL === */
+#tela-perfil{
+  position:absolute; inset:0; background:rgba(0,0,0,0.82); backdrop-filter:blur(14px);
+  z-index:400; display:none; align-items:center; justify-content:center; padding:16px;
+  opacity:0; transition: opacity 0.35s ease;
+}
+#tela-perfil.visivel{ display:flex; opacity:1 }
+.perfil-card{
+  background:linear-gradient(180deg,#1c1c1c,#0e0e0e); border:1px solid rgba(255,255,255,0.14);
+  border-radius:20px; padding:18px; width:100%; max-width:380px; text-align:center;
+  animation: fadeInSoft 0.5s cubic-bezier(.16,1,.3,1);
+  box-shadow:0 20px 60px rgba(0,0,0,0.8);
+}
+.perfil-avatar{
+  width:72px; height:72px; border-radius:50%; margin:0 auto 10px;
+  background:linear-gradient(135deg,#00ffcc,#0050c0); display:flex; align-items:center; justify-content:center;
+  font-size:32px; font-weight:900; border:3px solid #fff; box-shadow:0 6px 18px rgba(0,0,0,0.5);
+}
+.perfil-nome{ font-size:20px; font-weight:900; letter-spacing:0.8px; margin:0 0 4px }
+.perfil-sub{ font-size:11px; opacity:0.55; margin-bottom:14px }
+.perfil-stats{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0 }
+.perfil-stat{ background:rgba(255,255,255,0.06); border-radius:10px; padding:10px }
+.perfil-stat b{ display:block; font-size:18px; color:#00ffcc }
+.perfil-stat span{ font-size:10px; opacity:0.6; letter-spacing:0.6px }
+.perfil-stat.vitoria b{ color:#00ffcc }
+.perfil-stat.derrota b{ color:#ff3b30 }
+.perfil-stat.gols b{ color:#ffea00 }
+#btn-fechar-perfil{ width:100%; margin-top:12px; padding:12px; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.14); border-radius:10px; font-weight:800; cursor:pointer }
+
+/* === ANTI-TROLL BOTÕES === */
+.jogador-espera .acoes-dono{ display:flex; gap:4px; margin-left:6px }
+.btn-kick, .btn-mute{
+  width:22px; height:22px; border-radius:50%; border:none; cursor:pointer;
+  font-size:11px; display:flex; align-items:center; justify-content:center;
+  transition: transform 0.15s, filter 0.15s;
+}
+.btn-kick{ background:#ff3b30; color:#fff }
+.btn-mute{ background:#ffea00; color:#000 }
+.btn-kick:hover, .btn-mute:hover{ transform:scale(1.15) }
+
+/* === SHARE BUTTON === */
+#btn-compartilhar{
+  width:100%; margin-top:10px; padding:13px; background:linear-gradient(90deg,#00ffcc,#00e5ff);
+  color:#000; border:none; border-radius:12px; font-weight:900; font-size:13px;
+  cursor:pointer; letter-spacing:0.6px; box-shadow:0 6px 18px rgba(0,255,204,0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+#btn-compartilhar:hover{ transform:translateY(-1px); box-shadow:0 10px 24px rgba(0,255,204,0.45) }
+#btn-compartilhar:active{ transform:scale(0.98) }
+
+</style>
+</head>
+<body>
+
+<div id="tela-login">
+  <div class="login-card">
+    <div class="login-tabs">
+      <button class="login-tab" id="tab-entrar" onclick="trocarAba('login')">ENTRAR</button>
+      <button class="login-tab ativo" id="tab-criar" onclick="trocarAba('criar')">CRIAR CONTA</button>
+    </div>
+    <h1>⚽ FM ONLINE</h1>
+    <div class="sub" id="login-sub">Crie sua conta única</div>
+    <input class="login-input" id="login-nick" placeholder="SEU NICK" maxlength="12" autocomplete="off">
+    <input class="login-input senha" id="login-senha" type="password" placeholder="SENHA (3+ LETRAS)" maxlength="20" autocomplete="off">
+    <button class="login-btn" id="btn-login">CRIAR CONTA ✅</button>
+    <small id="login-dica">Seu nick será reservado e ninguém mais poderá usar.</small>
+    <div id="login-erro"></div>
+    <div id="login-sucesso"></div>
+  </div>
+</div>
+
+<div id="status">Conectando...</div>
+<div id="espectador-badge">👁️ MODO ESPECTADOR - Você entrou lotado</div>
+
+<div id="placar-tv">
+  <div class="time-box"><div id="escudo-esq" class="escudo" style="background:#2e7d32">C</div><span id="nome-esq">CASA</span></div>
+  <div style="display:flex;align-items:center;gap:10px"><div id="placar-nums" class="placar-nums">0 - 0</div><div id="tempo-tv">03:00</div></div>
+  <div class="time-box"><span id="nome-dir">FORA</span><div id="escudo-dir" class="escudo" style="background:#c62828">F</div></div>
+</div>
+
+<div id="lobby">
+  <div class="painel">
+    <h1>FM ONLINE</h1>
+    <div id="aviso-file" style="display:none;background:#ff3b30;padding:7px;border-radius:8px;margin-bottom:10px;font-size:11px">⚠️ Abra via http://localhost:8080</div>
+    <div class="grid-lobby">
+      <div style="margin-top:14px;background:rgba(255,234,0,0.08);border:1px solid rgba(255,234,0,0.22);border-radius:12px;padding:10px;text-align:left">
+          <h3 style="margin:0 0 8px;text-align:center">👑 ARTILHARIA DA SEMANA</h3>
+          <div id="artilharia-lobby" style="max-height:120px;overflow-y:auto;font-size:12px"></div>
+          <div id="ranking-semana" style="font-size:10px;opacity:0.5;text-align:center;margin-top:4px"></div>
+        </div>
+      <div class="coluna">
+        <h3>TEU CRAQUE</h3>
+        <input id="input-nome" placeholder="Nome" maxlength="10" disabled>
+        <div class="seletor-kits" id="seletor-kits"></div>
+        <select id="select-posicao"><option value="linha">POS: LINHA 🏃</option><option value="goleiro">POS: GOLEIRO 🧤</option></select>
+        <small style="opacity:0.5;font-size:10px;margin-top:4px">Uniforme e campo agora é só na config do dono 👑</small>
+      </div>
+      <div class="coluna">
+        <h3>SALAS ATIVAS</h3>
+        <ul id="lista-salas"></ul>
+        <input id="input-sala" placeholder="Nome da nova sala" maxlength="12">
+      </div>
+    </div>
+    <button id="btn-jogar">CRIAR / ENTRAR NA SALA</button>
+  </div>
+</div>
+
+<div id="sala-espera">
+  <div class="painel" style="max-width:820px">
+    <h1 id="titulo-sala">SALA: GERAL</h1>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:11px;margin-bottom:8px">
+      <span id="info-modo" class="badge">3v3</span>
+      <span id="info-priv" class="badge" style="background:#fff;color:#000">PÚBLICA</span>
+      <span id="info-bot" class="badge" style="background:#ffea00;color:#000">BOT ON</span>
+      <span id="info-tempo" class="badge" style="background:rgba(255,255,255,0.18);color:#fff">3:00</span>
+      <span id="info-dono" class="badge" style="background:#ff3b30;color:#fff;display:none">VOCÊ É O DONO 👑</span>
+      <span id="info-espec" class="badge" style="background:#7a5cff;color:#fff;display:none">0 ESPEC</span>
+    </div>
+
+    <div id="owner-config">
+      <h5>⚙️ CONFIG DO DONO - Personalize a partida</h5>
+      <div class="owner-row">
+        <input id="cfg-nome-esq" placeholder="Time CASA" maxlength="10">
+        <input id="cfg-nome-dir" placeholder="Time FORA" maxlength="10">
+        <select id="cfg-tempo"><option value="60">1 MIN</option><option value="120">2 MIN</option><option value="180" selected>3 MIN</option><option value="300">5 MIN</option><option value="600">10 MIN</option></select>
+      </div>
+      <div class="owner-row">
+        <select id="cfg-estadio">
+          <option value="grama">🏟️ GRAMA</option>
+          <option value="areia">🏖️ AREIA</option>
+          <option value="neve">❄️ NEVE</option>
+          <option value="rua">🛣️ RUA</option>
+          <option value="quadra">🏀 QUADRA</option>
+        </select>
+        <select id="cfg-clima">
+          <option value="sol">☀️ SOL</option>
+          <option value="chuva">🌧️ CHUVA</option>
+          <option value="neblina">🌫️ NEBLINA</option>
+          <option value="noite">🌙 NOITE</option>
+        </select>
+        <select id="cfg-modo">
+          <option value="3v3">3v3</option>
+          <option value="1v1">1v1</option>
+        </select>
+      </div>
+      <div class="owner-row">
+        <div style="display:flex;align-items:center;gap:6px;flex:1;background:rgba(255,255,255,0.06);padding:6px 8px;border-radius:8px">
+          <span style="font-size:10px">CASA COR</span>
+          <input type="color" id="cfg-cor-esq" value="#2e7d32" style="width:36px;height:28px;padding:0;border:none;background:transparent">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex:1;background:rgba(255,255,255,0.06);padding:6px 8px;border-radius:8px">
+          <span style="font-size:10px">FORA COR</span>
+          <input type="color" id="cfg-cor-dir" value="#c62828" style="width:36px;height:28px;padding:0;border:none;background:transparent">
+        </div>
+        <label class="check-row" style="flex:1;margin:0"><input type="checkbox" id="cfg-bot" checked> 🤖 BOT Goleiro</label>
+      </div>
+      <div class="owner-row"><button id="btn-salvar">SALVAR CONFIG 💾</button><span style="font-size:11px;opacity:0.7;align-self:center">Campo, clima e uniforme mudam na hora</span></div>
+    </div>
+
+    <div class="espera-grid">
+      <div class="time-col"><h4 id="h-esq">🔵 ESQUERDA (0)</h4><div id="lista-esq"></div></div>
+      <div class="time-col"><h4 id="h-dir">🔴 DIREITA (0)</h4><div id="lista-dir"></div></div>
+    </div>
+    <div style="font-size:11px;opacity:0.65;margin-bottom:8px" id="lista-espec"></div>
+    <div style="display:flex;gap:8px">
+      <button id="btn-trocar">Trocar Time</button>
+      <button id="btn-pos">Trocar Posição</button>
+      <button id="btn-sair">Sair</button>
+      <button id="btn-iniciar" style="display:none">INICIAR PARTIDA ▶️</button>
+    </div>
+    <p id="msg-espera" style="font-size:11.5px;margin-top:10px;opacity:0.72">Aguardando o dono iniciar...</p>
+  </div>
+</div>
+
+<div id="animacao-golo"><div class="texto-golo">GOOOOL!</div></div>
+<div id="tela-fim-jogo">
+  <div class="fim-container">
+    <div class="fim-header">
+      <h1 id="fim-resultado">FIM DE JOGO</h1>
+      <div id="fim-tipo" class="fim-tipo-badge fim-tipo-empate">EMPATE</div>
+    </div>
+    <div class="fim-placar-card">
+      <div class="fim-time">
+        <div id="fim-escudo-esq" class="escudo-grande" style="background:#2e7d32">C</div>
+        <span id="fim-nome-esq" class="fim-time-nome">CASA</span>
+      </div>
+      <div class="fim-placar-central">
+        <div id="fim-placar">0 - 0</div>
+        <div class="fim-vs">VS</div>
+      </div>
+      <div class="fim-time">
+        <div id="fim-escudo-dir" class="escudo-grande" style="background:#c62828">F</div>
+        <span id="fim-nome-dir" class="fim-time-nome">FORA</span>
+      </div>
+    </div>
+
+    <div class="stat-group-title">ESTATÍSTICAS DA PARTIDA</div>
+    <div class="fim-stats">
+      <div class="stat-row">
+        <div id="stat-chutes-esq" class="stat-val esq">0</div>
+        <div class="stat-center">
+          <div class="stat-label">⚽ Finalizações</div>
+          <div class="stat-bar-wrap"><div id="bar-chutes-esq" class="stat-bar-fill-esq" style="width:50%"></div><div id="bar-chutes-dir" class="stat-bar-fill-dir" style="width:50%"></div></div>
+        </div>
+        <div id="stat-chutes-dir" class="stat-val dir">0</div>
+      </div>
+
+      <div class="stat-row">
+        <div id="stat-chutes-gol-esq" class="stat-val esq">0</div>
+        <div class="stat-center">
+          <div class="stat-label">🎯 Chutes no Gol</div>
+          <div class="stat-bar-wrap"><div id="bar-chutes-gol-esq" class="stat-bar-fill-esq" style="width:50%"></div><div id="bar-chutes-gol-dir" class="stat-bar-fill-dir" style="width:50%"></div></div>
+        </div>
+        <div id="stat-chutes-gol-dir" class="stat-val dir">0</div>
+      </div>
+
+      <div class="stat-row">
+        <div id="stat-defesas-esq" class="stat-val esq">0</div>
+        <div class="stat-center">
+          <div class="stat-label">🧤 Defesas</div>
+          <div class="stat-bar-wrap"><div id="bar-defesas-esq" class="stat-bar-fill-esq" style="width:50%"></div><div id="bar-defesas-dir" class="stat-bar-fill-dir" style="width:50%"></div></div>
+        </div>
+        <div id="stat-defesas-dir" class="stat-val dir">0</div>
+      </div>
+
+      <div class="fim-posse">
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:#00ffcc" id="stat-posse-esq">50%</div><div style="font-size:10px;opacity:0.6" id="label-posse-esq">CASA</div></div>
+        <div style="flex:1;margin:0 12px">
+          <div class="stat-label" style="text-align:center;margin-bottom:6px">⏱️ Posse de Bola</div>
+          <div class="stat-bar-wrap" style="height:9px"><div id="bar-posse-esq" class="stat-bar-fill-esq" style="width:50%"></div><div id="bar-posse-dir" class="stat-bar-fill-dir" style="width:50%"></div></div>
+        </div>
+        <div style="text-align:center"><div style="font-size:18px;font-weight:900;color:#ff7a7a" id="stat-posse-dir">50%</div><div style="font-size:10px;opacity:0.6" id="label-posse-dir">FORA</div></div>
+      </div>
+    </div>
+
+    <div id="fim-artilharia" class="fim-artilharia" style="display:none">
+      <h4>👑 ARTILHARIA</h4>
+      <div id="lista-artilharia"></div>
+    </div>
+
+    <button id="btn-compartilhar" onclick="compartilharResultado()">COMPARTILHAR 📤 WHATSAPP</button>
+    <button id="btn-voltar-sala">VOLTAR PARA A SALA 🔄</button>
+  </div>
+</div>
+<div id="replay-overlay"><div class="replay-tag">📹 REPLAY - CÂMERA LENTA</div></div>
+
+<div id="chat-container"><div id="chat-mensagens"></div><input id="chat-input" placeholder="Resenha (Enter)..." maxlength="42"></div>
+<div id="game-wrapper"><canvas id="campo" width="800" height="600"></canvas></div>
+
+<div id="controles">
+  <!-- NOVO: MENU DE EMOTES -->
+  <div id="menu-emotes">
+    <div class="btn-emote" onmousedown="mandarEmote('😂')" ontouchstart="mandarEmote('😂')">😂</div>
+    <div class="btn-emote" onmousedown="mandarEmote('🤬')" ontouchstart="mandarEmote('🤬')">🤬</div>
+    <div class="btn-emote" onmousedown="mandarEmote('🔥')" ontouchstart="mandarEmote('🔥')">🔥</div>
+    <div class="btn-emote" onmousedown="mandarEmote('⚽')" ontouchstart="mandarEmote('⚽')">⚽</div>
+  </div>
+  <div id="joystick-zone"></div>
+  <div id="barra-forca-wrap"><div id="barra-forca-fill"></div></div>
+  <button id="btn-correr" class="botao-acao">BOOST</button>
+  <button id="btn-chute" class="botao-acao">CHUTE<br><span style="font-size:9px;opacity:0.85">SEGURA</span></button>
+</div>
+
+
+<div id="tela-perfil">
+  <div class="perfil-card">
+    <div class="perfil-avatar" id="perfil-avatar">?</div>
+    <div class="perfil-nome" id="perfil-nome">NICK</div>
+    <div class="perfil-sub" id="perfil-sub">Carregando estatísticas...</div>
+    <div class="perfil-stats">
+      <div class="perfil-stat gols"><b id="perfil-gols">0</b><span>⚽ GOLS</span></div>
+      <div class="perfil-stat"><b id="perfil-assist">0</b><span>🅰️ ASSIST</span></div>
+      <div class="perfil-stat vitoria"><b id="perfil-vitorias">0</b><span>✅ VITÓRIAS</span></div>
+      <div class="perfil-stat derrota"><b id="perfil-derrotas">0</b><span>❌ DERROTAS</span></div>
+      <div class="perfil-stat"><b id="perfil-empates">0</b><span>🤝 EMPATES</span></div>
+      <div class="perfil-stat"><b id="perfil-jogos">0</b><span>🎮 JOGOS</span></div>
+      <div class="perfil-stat"><b id="perfil-mvp">0</b><span>👑 MVP</span></div>
+      <div class="perfil-stat"><b id="perfil-aproveitamento">0%</b><span>📊 APROV</span></div>
+    </div>
+    <button id="btn-fechar-perfil" onclick="fecharPerfil()">FECHAR ✕</button>
+  </div>
+</div>
+
+
+<style>
+#owner-config select, #owner-config input, #owner-config input[type="color"], #owner-config button {
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: auto !important;
+}
+#owner-config {
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 20;
+}
+.painel { touch-action: auto !important; }
+</style>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+<script>
+let urlServidor = window.location.origin;
+if(window.location.protocol==='file:'){urlServidor='http://localhost:8080';document.getElementById('aviso-file').style.display='block'}
+const statusEl=document.getElementById('status');
+function setStatus(t,c='#00ffcc'){statusEl.textContent=t;statusEl.style.color=c;statusEl.style.borderColor=c}
+const socket=io(urlServidor,{transports:['websocket','polling'],reconnection:true});
+socket.on('connect',()=>setStatus('✅ '+socket.id));
+socket.on('disconnect',()=>setStatus('❌ Desconectado','#ff3b30'));
+socket.on('connect_error',()=>setStatus('❌ Sem servidor','#ff3b30'));
+
+socket.on('ranking_atualizado', (data)=>{
+  const div = document.getElementById('artilharia-lobby');
+  const sem = document.getElementById('ranking-semana');
+  if(!div) return;
+  if(!data ||!data.artilheiros){ div.innerHTML='<span style="opacity:0.5">Nenhum gol ainda</span>'; return; }
+  if(sem) sem.textContent = 'Semana: ' + (data.semana || '');
+  let lista = Object.entries(data.artilheiros).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(lista.length===0){ div.innerHTML='<span style="opacity:0.5">Seja o primeiro a marcar!</span>'; return; }
+  div.innerHTML='';
+  lista.forEach(([nome,gols],i)=>{
+    let el=document.createElement('div');
+    el.className='jogador-ranking';
+    let medal = i===0?'🥇' : i===1?'🥈' : i===2?'🥉' : `#${i+1}`;
+    el.innerHTML=`<span><span class="pos">${medal}</span> ${nome}</span><span style="font-weight:900">${gols} GOL${gols>1?'S':''}</span>`;
+    div.appendChild(el);
+  });
+});
+
+let modoAtual = 'criar';
+let nickLogado = null;
+function trocarAba(modo){
+  modoAtual = modo;
+  const tabEntrar=document.getElementById('tab-entrar');
+  const tabCriar=document.getElementById('tab-criar');
+  if(tabEntrar) tabEntrar.classList.toggle('ativo', modo==='login');
+  if(tabCriar) tabCriar.classList.toggle('ativo', modo==='criar');
+  const sub = document.getElementById('login-sub');
+  const btn = document.getElementById('btn-login');
+  const dica = document.getElementById('login-dica');
+  const nickInp = document.getElementById('login-nick');
+  if(!sub||!btn||!dica||!nickInp) return;
+  if(modo==='criar'){
+    sub.textContent='Crie sua conta única';
+    btn.textContent='CRIAR CONTA ✅';
+    dica.textContent='Seu nick será reservado e ninguém mais poderá usar.';
+    nickInp.placeholder='SEU NICK';
+  } else {
+    sub.textContent='Faça login pra evitar contas duplicadas';
+    btn.textContent='ENTRAR 🔓';
+    dica.textContent='Seu nick fica reservado com senha.';
+    nickInp.placeholder='SEU NICK';
+  }
+  const err=document.getElementById('login-erro'); if(err) err.style.display='none';
+  const suc=document.getElementById('login-sucesso'); if(suc) suc.style.display='none';
+}
+function mostrarErro(msg){
+  const el=document.getElementById('login-erro');
+  if(!el) return;
+  el.textContent=msg; el.style.display='block';
+  const suc=document.getElementById('login-sucesso'); if(suc) suc.style.display='none';
+}
+function mostrarSucesso(msg){
+  const el=document.getElementById('login-sucesso');
+  if(!el) return;
+  el.textContent=msg; el.style.display='block';
+  const err=document.getElementById('login-erro'); if(err) err.style.display='none';
+}
+function initLogin(){
+  const btnLogin=document.getElementById('btn-login');
+  if(!btnLogin) return;
+  btnLogin.onclick=()=>{
+    const nick=document.getElementById('login-nick').value.trim();
+    const senha=document.getElementById('login-senha').value.trim();
+    if(nick.length<3){ mostrarErro('Nick precisa ter 3+ letras'); return; }
+    if(senha.length<3){ mostrarErro('Senha precisa ter 3+ letras'); return; }
+    btnLogin.disabled=true; btnLogin.textContent='Carregando...';
+    if(modoAtual==='criar') socket.emit('criar_conta',{nick,senha});
+    else socket.emit('login',{nick,senha});
+  };
+  socket.on('login_ok', (d)=>{
+    nickLogado=d.nick;
+    localStorage.setItem('futgraal_nick', d.nick);
+    btnLogin.disabled=false;
+    trocarAba(modoAtual);
+    mostrarSucesso(d.novo ? `Conta ${d.nick} criada!` : `Bem-vindo ${d.nick}!`);
+    setTimeout(()=>{
+      document.getElementById('tela-login').style.display='none';
+      document.getElementById('lobby').style.display='flex';
+      const inp=document.getElementById('input-nome');
+      if(inp){ inp.value=d.nick; inp.disabled=true; }
+    }, 500);
+  });
+  socket.on('login_erro', (d)=>{
+    btnLogin.disabled=false;
+    trocarAba(modoAtual);
+    mostrarErro(d.msg||'Erro no login');
+  });
+  const salvo=localStorage.getItem('futgraal_nick');
+  if(salvo){ const el=document.getElementById('login-nick'); if(el) el.value=salvo; }
+  const lobby=document.getElementById('lobby');
+  if(lobby) lobby.style.display='none';
+  trocarAba('criar');
+}
+setTimeout(initLogin, 600);
+
+const canvas=document.getElementById('campo'), ctx=canvas.getContext('2d');
+let estadoJogo=null, jogando=false, souDono=false, isEspectador=false;
+let redeBalanco=0, camX=0, camY=0;
+let forcaChute=0, carregando=false, chargeStart=0, chargeInt=null;
+let historyBuf=[], replaying=false, replayFrames=[], replayIdx=0;
+let ultimoFimJogo=null;
+let _cfgInicialPreenchida=false;
+
+const kits=[{c1:'#c62828',c2:'#212121'},{c1:'#2e7d32',c2:'#fff'},{c1:'#fff',c2:'#212121'},{c1:'#fbc02d',c2:'#1565c0'},{c1:'#00e5ff',c2:'#0055ff'}];
+let kitEscolhido=kits[0];
+const kitBox=document.getElementById('seletor-kits');
+kits.forEach((k,i)=>{let d=document.createElement('div');d.className='kit'+(i==0?' ativo':'');d.style.background=`linear-gradient(135deg,${k.c1} 50%,${k.c2} 50%)`;d.onclick=()=>{document.querySelectorAll('.kit').forEach(e=>e.classList.remove('ativo'));d.classList.add('ativo');kitEscolhido=k};kitBox.appendChild(d)});
+
+socket.on('salas_atualizadas',lista=>{
+  const ul=document.getElementById('lista-salas'); ul.innerHTML='';
+  if(!lista||!lista.length){ul.innerHTML='<li style="opacity:0.6">Nenhuma sala ativa. Crie a primeira!</li>';return}
+  lista.forEach(s=>{
+    let li=document.createElement('li');
+    let icon=s.estado==='jogando'?'⚽':'⏳';
+    let lock=s.privacidade==='privada'?'🔒':'🌍';
+    let privBadge=s.privacidade==='privada'?`<span class="badge" style="background:#ff3b30;color:#fff;margin-right:4px">PRIV</span>`:'';
+    let timeLabel=s.timeA && s.timeB ? `${s.timeA} x ${s.timeB}` : s.modo;
+    li.innerHTML=`<span><strong>${lock} ${s.nome}</strong><br><span style="font-size:10px;opacity:0.6">${timeLabel} ${s.goleiro?'🤖':''}</span></span><span style="text-align:right">${privBadge}<span class="badge" style="margin-right:4px">${icon} ${s.estado}</span><span class="badge" style="background:rgba(255,255,255,0.14);color:#fff">${s.qtd}/${s.max}</span></span>`;
+    li.onclick=()=>{ document.getElementById('input-sala').value=s.nome; };
+    ul.appendChild(li);
+  });
+});
+
+socket.on('voce_e_dono',d=>{
+  souDono=d.dono;
+  document.getElementById('info-dono').style.display=d.dono?'inline-block':'none';
+  document.getElementById('btn-iniciar').style.display=d.dono?'block':'none';
+  const cfgDiv=document.getElementById('owner-config');
+  if(cfgDiv) cfgDiv.style.display=d.dono?'block':'none';
+  document.getElementById('msg-espera').textContent=d.dono?'Você é o dono. Configure e clique em SALVAR.':'Aguardando o dono iniciar...';
+  if(d.dono){
+    _cfgInicialPreenchida=false;
+  }
+});
+socket.on('voce_e_espectador',d=>{
+  isEspectador=true;
+  document.getElementById('espectador-badge').style.display='block';
+  document.getElementById('controles').style.display='flex';
+  document.getElementById('btn-chute').style.display='none';
+  document.getElementById('btn-correr').style.display='none';
+});
+socket.on('erro_entrada',d=>alert(d.msg));
+
+// === OWNER CONFIG 100% FIX ===
+function preencherConfigInicial(d){
+  if(_cfgInicialPreenchida) return;
+  if(!d||!d.config) return;
+  const setVal = (id, val)=>{
+    const el=document.getElementById(id);
+    if(el && !el.value) el.value=val;
+    else if(el && document.activeElement!==el) el.value=val;
+  };
+  setVal('cfg-nome-esq', d.config.nome_time_esq||'CASA');
+  setVal('cfg-nome-dir', d.config.nome_time_dir||'FORA');
+  setVal('cfg-tempo', String(d.config.tempo_cfg||180));
+  setVal('cfg-estadio', d.config.estadio||'grama');
+  setVal('cfg-clima', d.config.clima||'sol');
+  setVal('cfg-modo', d.config.modo||'3v3');
+  setVal('cfg-cor-esq', d.config.cor_time_esq||'#2e7d32');
+  setVal('cfg-cor-dir', d.config.cor_time_dir||'#c62828');
+  const bot=document.getElementById('cfg-bot');
+  if(bot) bot.checked=!!d.config.goleiro_bot;
+  _cfgInicialPreenchida=true;
+}
+
+function atualizarEspera(d){
+  try{
+    if(!d||!d.config) return;
+    const titulo=document.getElementById('titulo-sala');
+    if(titulo) titulo.textContent='SALA: '+(document.getElementById('input-sala').value||d.config.nome_time_esq+' x '+d.config.nome_time_dir||'GERAL');
+
+    const infoModo=document.getElementById('info-modo');
+    if(infoModo) infoModo.textContent=d.config.modo||'3v3';
+    const infoPriv=document.getElementById('info-priv');
+    if(infoPriv) infoPriv.textContent=d.config.privacidade==='privada'?'🔒 PRIVADA':'🌍 PÚBLICA';
+    const infoBot=document.getElementById('info-bot');
+    if(infoBot){
+      infoBot.textContent=d.config.goleiro_bot?'🤖 BOT ON':'BOT OFF';
+      infoBot.style.background=d.config.goleiro_bot?'#ffea00':'rgba(255,255,255,0.14)';
+      infoBot.style.color=d.config.goleiro_bot?'#000':'#fff';
+    }
+    const infoTempo=document.getElementById('info-tempo');
+    if(infoTempo){
+      let sec=d.config.tempo_cfg||180;
+      infoTempo.textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
+    }
+    const infoEspec=document.getElementById('info-espec');
+    if(infoEspec){
+      infoEspec.style.display=(d.espectadores && Object.keys(d.espectadores).length>0)?'inline-block':'none';
+      if(d.espectadores) infoEspec.textContent=Object.keys(d.espectadores).length+' ESPEC';
+    }
+
+    // NÃO sobrescreve inputs do dono - só mostra nos badges
+    if(souDono){
+      preencherConfigInicial(d);
+    }
+
+    const esq=document.getElementById('lista-esq'), dir=document.getElementById('lista-dir');
+    if(!esq||!dir) return;
+    esq.innerHTML=''; dir.innerHTML='';
+    let cE=0,cD=0;
+    for(let id in d.jogadores){
+      let j=d.jogadores[id];
+      let div=document.createElement('div');
+      let ehDono=id===d.config.owner;
+      div.className='jogador-espera'+(j.posicao==='goleiro'?' goleiro':'')+(ehDono?' dono':'');
+      let posIcon=j.posicao==='goleiro'?'🧤':'🏃';
+      let gc = j.gols_contra ? ` <span style="color:#ff3b30;font-size:10px">(${j.gols_contra} GC)</span>` : '';
+      let acoes='';
+      if(souDono && id!==socket.id){
+        acoes=`<span class="acoes-dono"><button class="btn-mute" onclick="mutar('${id}')" title="Mutar">🔇</button><button class="btn-kick" onclick="kickar('${id}')" title="Kickar">👢</button></span>`;
+      }
+      div.innerHTML=`<span style="cursor:pointer" onclick="abrirPerfil('${j.nome}')">${ehDono?'👑 ':''}${posIcon} ${j.nome}${gc}</span><span style="display:flex;align-items:center"><span style="width:14px;height:14px;border-radius:50%;background:${j.cor1};border:2px solid ${j.cor2};display:inline-block;margin-right:4px"></span>${acoes}</span>`;
+      (j.equipa==='esquerda'?esq:dir).appendChild(div);
+      if(j.equipa==='esquerda')cE++;else cD++;
+    }
+    const hEsq=document.getElementById('h-esq');
+    const hDir=document.getElementById('h-dir');
+    if(hEsq) hEsq.textContent=`🔵 ${d.config.nome_time_esq||'CASA'} (${cE})`;
+    if(hDir) hDir.textContent=`🔴 ${d.config.nome_time_dir||'FORA'} (${cD})`;
+    const espDiv=document.getElementById('lista-espec');
+    if(espDiv){
+      if(d.espectadores && Object.keys(d.espectadores).length>0){
+        let nomes=Object.values(d.espectadores).map(e=>`<span style="cursor:pointer" onclick="abrirPerfil('${e.nome}')">${e.nome}</span>`).join(', ');
+        espDiv.innerHTML='👁️ Espectadores: '+nomes;
+      } else espDiv.textContent='';
+    }
+  }catch(e){ console.error('atualizarEspera', e); }
+}
+socket.on('estado_espera', atualizarEspera);
+
+function salvarConfigOwner(){
+  if(!souDono){ alert('Só o dono pode configurar!'); return; }
+  const getVal = (id, defVal)=>{
+    const el=document.getElementById(id);
+    if(!el) return defVal;
+    return (el.value||'').trim() || defVal;
+  };
+  const dados={
+    nome_time_esq: getVal('cfg-nome-esq','CASA').substring(0,10).toUpperCase(),
+    nome_time_dir: getVal('cfg-nome-dir','FORA').substring(0,10).toUpperCase(),
+    tempo_cfg: getVal('cfg-tempo','180'),
+    estadio: getVal('cfg-estadio','grama'),
+    clima: getVal('cfg-clima','sol'),
+    modo: getVal('cfg-modo','3v3'),
+    cor_time_esq: document.getElementById('cfg-cor-esq')?.value || '#2e7d32',
+    cor_time_dir: document.getElementById('cfg-cor-dir')?.value || '#c62828',
+    goleiro_bot: document.getElementById('cfg-bot')?.checked ?? true
+  };
+  console.log('Enviando config:', dados);
+  socket.emit('atualizar_config', dados);
+  const btn=document.getElementById('btn-salvar');
+  if(btn){
+    const orig=btn.innerHTML;
+    btn.innerHTML='SALVO ✅';
+    btn.style.background='#00ffcc';
+    setTimeout(()=>{ btn.innerHTML=orig; btn.style.background='#ffea00'; }, 1800);
+  }
+}
+
+// Liga botões
+document.addEventListener('DOMContentLoaded', ()=>{
+  const btnJogar=document.getElementById('btn-jogar');
+  if(btnJogar){
+    btnJogar.onclick=()=>{
+      if(!nickLogado){ mostrarErro('Faça login primeiro!'); document.getElementById('tela-login').style.display='flex'; return; }
+      const sala=document.getElementById('input-sala').value.trim()||'GERAL';
+      const pos=document.getElementById('select-posicao').value;
+      socket.emit('entrar_jogo',{
+        nome:nickLogado,
+        sala:sala,
+        cor1:kitEscolhido.c1,
+        cor2:kitEscolhido.c2,
+        modo:'3v3',
+        privacidade:'publica',
+        senha:'',
+        tempo:180,
+        goleiro_bot:true,
+        posicao:pos,
+        nome_time_esq:'CASA',
+        nome_time_dir:'FORA',
+        estadio:'grama',
+        clima:'sol'
+      });
+      document.getElementById('lobby').style.display='none';
+      document.getElementById('sala-espera').style.display='flex';
+      _cfgInicialPreenchida=false;
+    };
+  }
+  const btnSalvar=document.getElementById('btn-salvar');
+  if(btnSalvar){
+    btnSalvar.onclick=(e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      salvarConfigOwner();
+    };
+    btnSalvar.addEventListener('touchend', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      salvarConfigOwner();
+    }, {passive:false});
+  }
+  // Impede que cliques nos selects fechem ou propaguem pro painel
+  ['cfg-estadio','cfg-clima','cfg-modo','cfg-tempo','cfg-cor-esq','cfg-cor-dir','cfg-nome-esq','cfg-nome-dir','cfg-bot'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      el.addEventListener('mousedown', (e)=>e.stopPropagation());
+      el.addEventListener('touchstart', (e)=>e.stopPropagation(), {passive:true});
+      el.addEventListener('click', (e)=>e.stopPropagation());
+    }
+  });
+});
+
+document.getElementById('btn-trocar').onclick=()=>socket.emit('trocar_equipa');
+document.getElementById('btn-pos').onclick=()=>socket.emit('trocar_posicao');
+document.getElementById('btn-sair').onclick=()=>{
+  document.body.classList.remove('in-game');
+  socket.emit('sair_sala');
+  document.getElementById('sala-espera').style.display='none';
+  document.getElementById('controles').style.display='none';
+  const placar=document.getElementById('placar-tv');
+  if(placar) placar.classList.remove('visivel');
+  document.getElementById('lobby').style.display='flex';
+  jogando=false; estadoJogo=null; isEspectador=false;
+  _cfgInicialPreenchida=false;
+};
+document.getElementById('btn-iniciar').onclick=()=>socket.emit('iniciar_partida');
+
+document.body.classList.remove('in-game');
+socket.on('partida_iniciada',()=>{
+  document.body.classList.add('in-game');
+  document.getElementById('sala-espera').style.display='none';
+  document.getElementById('controles').style.display='flex';
+  document.getElementById('chat-container').style.display='block';
+  document.getElementById('placar-tv').classList.add('visivel');
+  jogando=true; historyBuf=[]; replaying=false;
+  if(!isEspectador){document.getElementById('btn-chute').style.display='block';document.getElementById('btn-correr').style.display='block';}
+  if(!isEspectador){
+      document.getElementById('btn-chute').style.display='block';
+      document.getElementById('btn-correr').style.display='block';
+      document.getElementById('menu-emotes').style.display='flex'; // MOSTRAR EMOTES
+  }
+});
+
+function atualizarPlacarTV(d){
+  let esqNome=d.config?d.config.nome_time_esq:'CASA';
+  let dirNome=d.config?d.config.nome_time_dir:'FORA';
+  const nEsq=document.getElementById('nome-esq');
+  const nDir=document.getElementById('nome-dir');
+  if(nEsq) nEsq.textContent=esqNome.substring(0,8);
+  if(nDir) nDir.textContent=dirNome.substring(0,8);
+  const placarNums=document.getElementById('placar-nums');
+  if(placarNums) placarNums.textContent=`${d.placar.esquerda} - ${d.placar.direita}`;
+  let m=Math.floor(d.tempo_restante/60), s=d.tempo_restante%60;
+  let te=document.getElementById('tempo-tv');
+  if(te){
+    te.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if(d.tempo_restante<=10 && d.estado_partida==='jogando') te.classList.add('piscando'); else te.classList.remove('piscando');
+  }
+  let e=null,di=null;
+  for(let id in d.jogadores){let j=d.jogadores[id]; if(!e&&j.equipa==='esquerda')e=j; if(!di&&j.equipa==='direita')di=j;}
+  const escEsq=document.getElementById('escudo-esq');
+  const escDir=document.getElementById('escudo-dir');
+  if(e&&escEsq){escEsq.style.background=e.cor1||d.config.cor_time_esq;escEsq.style.borderColor=e.cor2;}
+  if(di&&escDir){escDir.style.background=di.cor1||d.config.cor_time_dir;escDir.style.borderColor=di.cor2;}
+}
+
+socket.on('estado_jogo',d=>{
+  if(!d) return;
+  estadoJogo=d;
+  if(jogando && !replaying){
+    atualizarPlacarTV(d);
+    try{
+      let clone=JSON.parse(JSON.stringify({bola:d.bola,jogadores:d.jogadores,bots:d.bots,placar:d.placar,tempo_restante:d.tempo_restante,estado_partida:d.estado_partida,config:d.config,traves:d.traves}));
+      historyBuf.push(clone);
+      if(historyBuf.length>150) historyBuf.shift();
+    }catch(e){}
+  }
+});
+
+function mostrarTelaFim(dados){
+    ultimoFimJogo = dados;
+    const tela = document.getElementById('tela-fim-jogo');
+    if(!tela) return;
+    tela.style.display='flex';
+    requestAnimationFrame(()=>tela.classList.add('visivel'));
+    const placarEl=document.getElementById('fim-placar');
+    if(placarEl) placarEl.innerText=`${dados.placar.esquerda} - ${dados.placar.direita}`;
+    const nomeEsq=dados.nome_time_esq||dados.config?.nome_time_esq||'CASA';
+    const nomeDir=dados.nome_time_dir||dados.config?.nome_time_dir||'FORA';
+    const elNE=document.getElementById('fim-nome-esq');
+    const elND=document.getElementById('fim-nome-dir');
+    if(elNE) elNE.textContent=nomeEsq;
+    if(elND) elND.textContent=nomeDir;
+    const lEsq=document.getElementById('label-posse-esq');
+    const lDir=document.getElementById('label-posse-dir');
+    if(lEsq) lEsq.textContent=nomeEsq;
+    if(lDir) lDir.textContent=nomeDir;
+    try{
+      const escEsq=document.getElementById('escudo-esq');
+      const escDir=document.getElementById('escudo-dir');
+      const fEsq=document.getElementById('fim-escudo-esq');
+      const fDir=document.getElementById('fim-escudo-dir');
+      if(escEsq&&fEsq){ fEsq.style.background=escEsq.style.background||dados.cor_time_esq||'#2e7d32'; fEsq.style.borderColor=escEsq.style.borderColor||'#fff'; fEsq.textContent=nomeEsq.charAt(0); }
+      if(escDir&&fDir){ fDir.style.background=escDir.style.background||dados.cor_time_dir||'#c62828'; fDir.style.borderColor=escDir.style.borderColor||'#fff'; fDir.textContent=nomeDir.charAt(0); }
+    }catch(e){}
+    let txtRes="FIM DE JOGO";
+    let tipoTxt="EMPATE";
+    let isEmpate=dados.empate||!dados.vencedor;
+    const badge=document.getElementById('fim-tipo');
+    if(isEmpate){
+      txtRes="EMPATE!";
+      tipoTxt="🤝 EMPATE";
+      if(badge){ badge.className='fim-tipo-badge fim-tipo-empate'; badge.textContent=tipoTxt; }
+    } else {
+      txtRes="VITÓRIA!";
+      tipoTxt=`🏆 ${dados.vencedor==='esquerda'?nomeEsq:nomeDir}`;
+      if(badge){ badge.className='fim-tipo-badge fim-tipo-vitoria'; badge.textContent=tipoTxt; }
+    }
+    const resEl=document.getElementById('fim-resultado');
+    if(resEl) resEl.innerText=txtRes;
+    const stats=dados.estatisticas||{};
+    const chutes=stats.chutes||{esquerda:dados.placar.esquerda,direita:dados.placar.direita};
+    const chutesGol=stats.chutes_no_gol||{esquerda:dados.placar.esquerda,direita:dados.placar.direita};
+    const defesas=stats.defesas||{esquerda:0,direita:0};
+    const posse=stats.posse||{esquerda:50,direita:50};
+    function setBar(eId,dId,bE,bD,vE,vD){
+      const elE=document.getElementById(eId);
+      const elD=document.getElementById(dId);
+      if(elE) elE.textContent=vE;
+      if(elD) elD.textContent=vD;
+      const tot=(vE+vD)||1;
+      const pE=Math.round(vE/tot*100);
+      const pD=100-pE;
+      const barE=document.getElementById(bE);
+      const barD=document.getElementById(bD);
+      if(barE) barE.style.width=(vE+vD===0?'50%':pE+'%');
+      if(barD) barD.style.width=(vE+vD===0?'50%':pD+'%');
+    }
+    setBar('stat-chutes-esq','stat-chutes-dir','bar-chutes-esq','bar-chutes-dir',chutes.esquerda||0,chutes.direita||0);
+    setBar('stat-chutes-gol-esq','stat-chutes-gol-dir','bar-chutes-gol-esq','bar-chutes-gol-dir',chutesGol.esquerda||0,chutesGol.direita||0);
+    setBar('stat-defesas-esq','stat-defesas-dir','bar-defesas-esq','bar-defesas-dir',defesas.esquerda||0,defesas.direita||0);
+    const pEsqEl=document.getElementById('stat-posse-esq');
+    const pDirEl=document.getElementById('stat-posse-dir');
+    const bPEsq=document.getElementById('bar-posse-esq');
+    const bPDir=document.getElementById('bar-posse-dir');
+    let pE=(posse.esquerda!=null?posse.esquerda:50);
+    let pD=(posse.direita!=null?posse.direita:50);
+    if(pE+pD!==100){ let tot=pE+pD; if(tot>0){ pE=Math.round(pE/tot*100); pD=100-pE; } else { pE=50;pD=50; } }
+    if(pEsqEl) pEsqEl.textContent=pE+'%';
+    if(pDirEl) pDirEl.textContent=pD+'%';
+    if(bPEsq) bPEsq.style.width=pE+'%';
+    if(bPDir) bPDir.style.width=pD+'%';
+    const golsJog=stats.gols_jogadores||{};
+    const artDiv=document.getElementById('fim-artilharia');
+    const listaArt=document.getElementById('lista-artilharia');
+    if(listaArt){
+      listaArt.innerHTML='';
+      const entries=Object.entries(golsJog).sort((a,b)=>b[1]-a[1]);
+      if(entries.length>0){
+        artDiv.style.display='block';
+        const h4=artDiv.querySelector('h4'); if(h4) h4.textContent='👑 ARTILHARIA';
+        entries.forEach(([nome,gols])=>{
+          const div=document.createElement('div');
+          div.className='jogador-stat';
+          div.innerHTML=`<span class="js-nome">⚽ ${nome}</span><span class="js-gols">${gols} GOL${gols>1?'S':''}</span>`;
+          listaArt.appendChild(div);
+        });
+      } else {
+        const chJog=stats.chutes_jogadores||{};
+        const entriesC=Object.entries(chJog).sort((a,b)=>b[1]-a[1]).slice(0,5);
+        if(entriesC.length>0){
+          artDiv.style.display='block';
+          const h4=artDiv.querySelector('h4'); if(h4) h4.textContent='🔥 DESTAQUES';
+          entriesC.forEach(([nome,ch])=>{
+            const div=document.createElement('div');
+            div.className='jogador-stat';
+            div.innerHTML=`<span class="js-nome">🏃 ${nome}</span><span class="js-gols" style="background:rgba(255,255,255,0.14);color:#fff">${ch} CHUTES</span>`;
+            listaArt.appendChild(div);
+          });
+        } else { artDiv.style.display='none'; }
+      }
+    }
+    jogando=false;
+}
+
+socket.on('fim_jogo', (dados)=>{ mostrarTelaFim(dados); });
+socket.on('fim_de_jogo', (dados)=>{
+  const placar=dados.placar||{esquerda:0,direita:0};
+  let vencedor=null;
+  if(placar.esquerda>placar.direita) vencedor='esquerda';
+  else if(placar.direita>placar.esquerda) vencedor='direita';
+  mostrarTelaFim({vencedor,placar,nome_time_esq:document.getElementById('nome-esq')?.textContent||'CASA',nome_time_dir:document.getElementById('nome-dir')?.textContent||'FORA',estatisticas:dados.estatisticas||null,empate:vencedor===null,cor_time_esq:dados.cor_time_esq,cor_time_dir:dados.cor_time_dir});
+});
+
+// VOLTAR PARA SALA - FIX DEFINITIVO
+function voltarParaSala(){
+  console.log('Voltar clicado');
+  socket.emit('voltar_sala_espera');
+  const btn=document.getElementById('btn-voltar-sala');
+  if(btn){ btn.innerHTML='VOLTANDO... ⏳'; btn.disabled=true; }
+}
+document.getElementById('btn-voltar-sala').addEventListener('click', (e)=>{
+  e.preventDefault(); e.stopPropagation(); voltarParaSala();
+});
+document.getElementById('btn-voltar-sala').addEventListener('touchend', (e)=>{
+  e.preventDefault(); e.stopPropagation(); voltarParaSala();
+}, {passive:false});
+
+socket.on('forcar_volta_lobby', (d)=>{
+  const menuEmotes = document.getElementById('menu-emotes');
+  if (menuEmotes) menuEmotes.style.display = 'none'; // ESCONDER EMOTES
+  console.log('forcar_volta_lobby recebido', d);
+  const tela=document.getElementById('tela-fim-jogo');
+  if(tela){
+    tela.classList.remove('visivel');
+    setTimeout(()=>{ tela.style.display='none'; }, 300);
+  }
+  document.getElementById('controles').style.display='none';
+  document.getElementById('chat-container').style.display='none';
+  const placarTv=document.getElementById('placar-tv');
+  if(placarTv) placarTv.classList.remove('visivel');
+  document.body.classList.remove('in-game');
+  jogando=false;
+  isEspectador=false;
+  estadoJogo=null;
+  const salaEspera=document.getElementById('sala-espera');
+  if(salaEspera) salaEspera.style.display='flex';
+  document.getElementById('lobby').style.display='none';
+  const btn=document.getElementById('btn-voltar-sala');
+  if(btn){ btn.innerHTML='VOLTAR PARA A SALA 🔄'; btn.disabled=false; }
+  _cfgInicialPreenchida=false;
+  if(d && d.motivo) setTimeout(()=>alert(d.motivo), 300);
+});
+
+// COMPARTILHAR - FIX 100%
+async function compartilharResultado(){
+  if(!ultimoFimJogo){
+    alert('Sem dados da partida! Jogue uma partida primeiro.');
+    return;
+  }
+  const placar=ultimoFimJogo.placar||{esquerda:0,direita:0};
+  const nomeE=(ultimoFimJogo.nome_time_esq||'CASA').toUpperCase();
+  const nomeD=(ultimoFimJogo.nome_time_dir||'FORA').toUpperCase();
+  const stats=ultimoFimJogo.estatisticas||{};
+  const vencedor=ultimoFimJogo.vencedor;
+  const empate=ultimoFimJogo.empate;
+  const btn=document.getElementById('btn-compartilhar');
+  if(btn) btn.innerHTML='GERANDO... ⏳';
+
+  const c=document.createElement('canvas');
+  c.width=1080; c.height=1350;
+  const ctx=c.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,1350);
+  grad.addColorStop(0,'#162a18'); grad.addColorStop(1,'#060a06');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,1080,1350);
+  ctx.fillStyle='rgba(0,255,204,0.10)'; ctx.fillRect(0,0,1080,8);
+  ctx.fillStyle='#fff'; ctx.font='900 72px Montserrat'; ctx.textAlign='center';
+  ctx.fillText('FUTGRAAL',540,120);
+  ctx.fillStyle='#00ffcc'; ctx.font='800 28px Montserrat'; ctx.fillText('RESULTADO FINAL',540,165);
+  let resultadoTxt=empate?'EMPATE!':`VITÓRIA ${vencedor==='esquerda'?nomeE:nomeD}`;
+  ctx.fillStyle=empate?'#ffea00':'#00ffcc'; ctx.font='900 32px Montserrat';
+  ctx.fillText(resultadoTxt,540,210);
+  ctx.fillStyle='rgba(255,255,255,0.07)';
+  ctx.beginPath(); ctx.roundRect(60,240,960,300,20); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font='900 42px Montserrat';
+  ctx.textAlign='left'; ctx.fillText(nomeE.substring(0,12),100,330);
+  ctx.textAlign='right'; ctx.fillText(nomeD.substring(0,12),980,330);
+  ctx.textAlign='center'; ctx.font='900 90px Montserrat'; ctx.fillStyle='#00ffcc';
+  ctx.fillText(`${placar.esquerda} - ${placar.direita}`,540,380);
+  let y=620;
+  ctx.fillStyle='#fff'; ctx.font='700 26px Montserrat'; ctx.textAlign='left';
+  const chutes=stats.chutes||{esquerda:0,direita:0};
+  const posse=stats.posse||{esquerda:50,direita:50};
+  const chGol=stats.chutes_no_gol||{esquerda:0,direita:0};
+  const defesas=stats.defesas||{esquerda:0,direita:0};
+  ctx.fillText(`Finalizações: ${chutes.esquerda} x ${chutes.direita}`,80,y); y+=50;
+  ctx.fillText(`Chutes no gol: ${chGol.esquerda} x ${chGol.direita}`,80,y); y+=50;
+  ctx.fillText(`Defesas: ${defesas.esquerda} x ${defesas.direita}`,80,y); y+=50;
+  ctx.fillText(`Posse: ${posse.esquerda}% x ${posse.direita}%`,80,y); y+=70;
+  ctx.fillStyle='#ffea00'; ctx.font='800 28px Montserrat';
+  ctx.fillText('Artilharia:',80,y); y+=50;
+  ctx.font='700 24px Montserrat';
+  const golsJ=stats.gols_jogadores||{};
+  const entries=Object.entries(golsJ).slice(0,6);
+  if(entries.length===0){
+    ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.fillText('Nenhum gol - só resenha 😅',80,y);
+  } else {
+    entries.forEach(([n,g])=>{
+      ctx.fillStyle=n.includes('(GC)')?'#ff3b30':'#fff';
+      ctx.fillText(`${n}: ${g} gol(s)`,80,y); y+=40;
+    });
+  }
+  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='700 20px Montserrat'; ctx.textAlign='center';
+  ctx.fillText('FM ONLINE - FUTGRAAL',540,1300);
+
+  c.toBlob(async (blob)=>{
+    if(!blob){
+      alert('Erro ao gerar imagem');
+      if(btn) btn.innerHTML='COMPARTILHAR 📤 WHATSAPP';
+      return;
+    }
+    const file=new File([blob], `futgraal-${nomeE}x${nomeD}.png`, {type:'image/png'});
+    const textoShare=`⚽ FUTGRAAL RESULTADO\n${nomeE} ${placar.esquerda} x ${placar.direita} ${nomeD}\n${resultadoTxt}\nJogue: ${window.location.href}`;
+    try{
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'FutGraal', text:textoShare});
+        if(btn) btn.innerHTML='COMPARTILHAR 📤 WHATSAPP';
+        return;
+      }
+    }catch(e){ console.log('share file cancel', e); }
+    try{
+      if(navigator.share){
+        await navigator.share({title:'FutGraal', text:textoShare});
+      }
+    }catch(e){}
+    // fallback download
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`resultado-${nomeE}-${placar.esquerda}x${placar.direita}-${nomeD}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    // whatsapp
+    const wa=`https://wa.me/?text=${encodeURIComponent(textoShare)}`;
+    window.open(wa,'_blank');
+    if(btn) btn.innerHTML='COMPARTILHAR 📤 WHATSAPP';
+  }, 'image/png');
+}
+
+let audioCtx;
+function tocar(t){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  const now=audioCtx.currentTime;
+  if(t==='chute'){let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.setValueAtTime(180,now);o.frequency.exponentialRampToValueAtTime(30,now+0.12);g.gain.setValueAtTime(0.9,now);g.gain.exponentialRampToValueAtTime(0.01,now+0.12);o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+0.13);}
+  else if(t==='chute_forte'){let o=audioCtx.createOscillator(),g=audioCtx.createGain(),o2=audioCtx.createOscillator();o.type='square';o.frequency.setValueAtTime(120,now);o.frequency.linearRampToValueAtTime(600,now+0.18);o2.type='sawtooth';o2.frequency.setValueAtTime(80,now);g.gain.setValueAtTime(1,now);g.gain.exponentialRampToValueAtTime(0.01,now+0.35);o.connect(g);o2.connect(g);g.connect(audioCtx.destination);o.start(now);o2.start(now);o.stop(now+0.35);o2.stop(now+0.35);}
+  else if(t==='trave'){let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='triangle';o.frequency.setValueAtTime(800,now);o.frequency.exponentialRampToValueAtTime(120,now+0.25);g.gain.setValueAtTime(0.7,now);g.gain.exponentialRampToValueAtTime(0.01,now+0.25);o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+0.26);}
+  else if(t==='gol_torcida'){for(let i=0;i<6;i++){let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=['sine','square','sawtooth'][i%3];o.frequency.setValueAtTime(200+Math.random()*600,now+i*0.04);o.frequency.linearRampToValueAtTime(100+Math.random()*300,now+0.6+i*0.04);g.gain.setValueAtTime(0.18,now);g.gain.linearRampToValueAtTime(0,now+1.2);o.connect(g);g.connect(audioCtx.destination);o.start(now+i*0.03);o.stop(now+1.2);}}
+}
+socket.on('evento_som',t=>{if(jogando||replaying) tocar(t);});
+socket.on('evento_golo',d=>{
+  redeBalanco=30; camX=(Math.random()-0.5)*14;
+  canvas.classList.add('shake'); setTimeout(()=>canvas.classList.remove('shake'),420);
+  tocar('gol_torcida');
+  if(historyBuf.length>10 && !replaying){
+    replaying=true; replayFrames=historyBuf.slice(-75); replayIdx=0;
+    document.getElementById('replay-overlay').classList.add('visivel');
+    setTimeout(()=>{replaying=false;document.getElementById('replay-overlay').classList.remove('visivel');}, 2200);
+  }
+  const anim=document.getElementById('animacao-golo'); anim.classList.add('visivel'); setTimeout(()=>anim.classList.remove('visivel'), 2600);
+});
+socket.on('nova_mensagem',d=>{
+  const cx=document.getElementById('chat-mensagens');
+  const m=document.createElement('div');
+  m.className='mensagem';
+  m.innerHTML=`<span style="color:${d.cor}">${d.nome}:</span> ${d.mensagem}`;
+  cx.appendChild(m);
+  setTimeout(()=>{if(cx.contains(m))cx.removeChild(m)},6200);
+});
+document.getElementById('chat-input').addEventListener('keypress',e=>{if(e.key==='Enter'){if(e.target.value.trim())socket.emit('chat_mensagem',{mensagem:e.target.value});e.target.value='';e.target.blur();}});
+
+function desenharCampo(){
+  let estadio='grama',clima='sol';
+  if(estadoJogo&&estadoJogo.config){estadio=estadoJogo.config.estadio||'grama';clima=estadoJogo.config.clima||'sol';}
+  let corBase="#1b5e20";
+  if(estadio==='areia') corBase="#c2a86a";
+  else if(estadio==='neve') corBase="#dfefff";
+  else if(estadio==='rua') corBase="#3a3a3a";
+  else if(estadio==='quadra') corBase="#8d5524";
+  ctx.fillStyle=corBase; ctx.fillRect(0,0,800,600);
+  if(estadio==='grama'){
+    ctx.fillStyle="rgba(0,0,0,0.10)"; for(let i=0;i<800;i+=80){ctx.fillRect(i,0,40,600)}
+    ctx.fillStyle="rgba(255,255,255,0.03)"; for(let i=0;i<600;i+=90){ctx.fillRect(0,i,800,14)}
+  } else if(estadio==='quadra'){
+    ctx.fillStyle="rgba(0,0,0,0.18)"; ctx.fillRect(0,280,800,40);
+    ctx.fillStyle="rgba(255,255,255,0.06)"; for(let i=0;i<800;i+=100){ctx.fillRect(i,0,20,600)}
+  } else if(estadio==='areia'){
+    ctx.fillStyle="rgba(255,255,255,0.08)"; for(let i=0;i<800;i+=60){ctx.fillRect(i,0,30,600)}
+  }
+  ctx.strokeStyle=estadio==='neve'?"rgba(0,0,0,0.7)":"rgba(255,255,255,0.92)";
+  ctx.lineWidth=2.2; ctx.strokeRect(1,1,798,598);
+  ctx.beginPath(); ctx.moveTo(400,0); ctx.lineTo(400,600); ctx.stroke();
+  ctx.beginPath(); ctx.arc(400,300,78,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(400,300,4,0,Math.PI*2); ctx.fillStyle=estadio==='neve'?"#000":"#fff"; ctx.fill();
+  ctx.strokeRect(0,140,110,320); ctx.strokeRect(0,210,38,180);
+  ctx.beginPath(); ctx.arc(88,300,58,-0.9,0.9); ctx.stroke();
+  ctx.beginPath(); ctx.arc(88,300,3,0,Math.PI*2); ctx.fill();
+  ctx.strokeRect(690,140,110,320); ctx.strokeRect(762,210,38,180);
+  ctx.beginPath(); ctx.arc(712,300,58,Math.PI-0.9,Math.PI+0.9); ctx.stroke();
+  ctx.beginPath(); ctx.arc(712,300,3,0,Math.PI*2); ctx.fill();
+  ctx.lineWidth=1.6; [[0,0],[0,600],[800,0],[800,600]].forEach(([x,y])=>{ctx.beginPath(); ctx.arc(x,y,12,0,Math.PI*2); ctx.stroke();});
+  if(clima==='chuva'){
+    ctx.fillStyle="rgba(100,180,255,0.12)";
+    for(let i=0;i<120;i++){let x=(i*73)%800,y=(Date.now()/8+i*40)%600;ctx.fillRect(x,y,1.5,12);}
+  } else if(clima==='neblina'){ctx.fillStyle="rgba(255,255,255,0.10)";ctx.fillRect(0,0,800,600);}
+  else if(clima==='noite'){ctx.fillStyle="rgba(0,0,40,0.28)";ctx.fillRect(0,0,800,600);ctx.fillStyle="rgba(255,255,200,0.06)";ctx.beginPath();ctx.arc(120,80,36,0,Math.PI*2);ctx.fill();}
+}
+function desenharTraves(bal){
+  let posts=[{x:4,y:200},{x:4,y:400},{x:796,y:200},{x:796,y:400}];
+  posts.forEach((t,i)=>{
+    let wob=(i%2===0?1:-1)*(bal||0)*0.3;
+    ctx.fillStyle="rgba(0,0,0,0.42)";ctx.beginPath();ctx.ellipse(t.x+wob+2,t.y+3,8,5,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#ff1e1e";ctx.strokeStyle="#fff";ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(t.x+wob,t.y,7.8,0,Math.PI*2);ctx.fill();ctx.stroke();
+  });
+  ctx.strokeStyle=`rgba(255,255,255,${0.14+Math.min(0.18,Math.abs(bal||0)*0.009)})`;ctx.lineWidth=1;
+  for(let y=210;y<390;y+=14){ctx.beginPath();ctx.moveTo(2,y);ctx.lineTo(12+(bal||0)*0.16,y);ctx.stroke();ctx.beginPath();ctx.moveTo(798,y);ctx.lineTo(786-(bal||0)*0.16,y);ctx.stroke();}
+}
+function desenharJogador(j,isMe,isBot){
+  ctx.fillStyle="rgba(0,0,0,0.32)";ctx.beginPath();ctx.ellipse(j.x,j.y+18,j.raio*1.25,j.raio*0.62,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(j.x,j.y,j.raio,0,Math.PI*2);ctx.fillStyle=j.cor1;ctx.fill();
+  ctx.beginPath();ctx.arc(j.x,j.y,j.raio*0.64,0,Math.PI*2);ctx.fillStyle=j.cor2;ctx.fill();
+  ctx.strokeStyle=isBot?"#ffea00":(isMe?"#00ffcc":"#fff");ctx.lineWidth=isBot?2.2:(isMe?2.8:1.3);ctx.stroke();
+  if(j.posicao==='goleiro'){ctx.fillStyle="#ffea00";ctx.font="bold 11px Montserrat";ctx.textAlign="center";ctx.fillText("GK",j.x,j.y-24);}
+  ctx.fillStyle="#fff";ctx.font="bold 11px Montserrat";ctx.textAlign="center";ctx.fillText(j.nome,j.x,j.y-(j.posicao==='goleiro'?32:26));
+  if(j.stamina!==undefined&&!isBot){ctx.fillStyle="rgba(0,0,0,0.52)";ctx.fillRect(j.x-18,j.y+20,36,4);ctx.fillStyle=j.stamina>32?"#00ffcc":"#ff3b30";ctx.fillRect(j.x-18,j.y+20,(j.stamina/100)*36,4);}
+  // --- NOVO: DESENHAR O EMOTE ---
+  if (j.emote && j.emote !== "") {
+      ctx.fillStyle = "#fff";
+      ctx.font = "24px Arial";
+      ctx.textAlign = "center";
+      // Posiciona o emoji acima do nome do jogador
+      ctx.fillText(j.emote, j.x, j.y - (j.posicao === 'goleiro' ? 50 : 44));
+  }
+}
+function desenharBola(b){
+  if(b.fogo>0){for(let i=0;i<5;i++){let a=(b.fogo-i*6)/45;if(a<=0)continue;ctx.fillStyle=`rgba(255,${120+i*20},0,${a*0.55})`;ctx.beginPath();ctx.arc(b.x-(b.vx||0)*i*0.35,b.y-(b.vy||0)*i*0.35,b.raio+2+i*1.2,0,Math.PI*2);ctx.fill();}ctx.shadowColor="#ff6a00";ctx.shadowBlur=18;}else{ctx.shadowBlur=0;}
+  ctx.beginPath();ctx.arc(b.x,b.y,b.raio,0,Math.PI*2);ctx.fillStyle="#fff";ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle=b.fogo>0?"#ff3b30":"#111";ctx.lineWidth=b.fogo>0?2.2:1.4;ctx.stroke();
+  ctx.fillStyle="#111";ctx.beginPath();ctx.arc(b.x-2,b.y-1,2,0,Math.PI*2);ctx.fill();
+}
+let camShake=0;
+function desenhar(){
+ try{
+  let frameData=replaying?replayFrames[Math.floor(replayIdx)]:estadoJogo;
+  ctx.save();
+  let shakeX=0,shakeY=0;
+  if(camShake>0){shakeX=(Math.random()-0.5)*camShake;shakeY=(Math.random()-0.5)*camShake;camShake*=0.88;if(camShake<0.3)camShake=0;}
+  ctx.translate(shakeX+camX,shakeY+camY);
+  desenharCampo();
+  desenharTraves(redeBalanco);
+  if(redeBalanco>0){redeBalanco*=0.92;if(redeBalanco<0.25)redeBalanco=0;}
+  if(frameData){
+    let jogadores=frameData.jogadores||{};
+    let bots=frameData.bots||{};
+    let bola=frameData.bola;
+    let todos={...jogadores,...bots};
+    for(let id in todos){let j=todos[id];if(!j)continue;let isMe=id===socket.id;let isBot=id.startsWith('bot_');desenharJogador(j,isMe,isBot);}
+    if(bola) desenharBola(bola);
+    if(!replaying&&carregando&&!isEspectador&&estadoJogo&&estadoJogo.jogadores&&estadoJogo.jogadores[socket.id]){
+      let me=estadoJogo.jogadores[socket.id];
+      let pct=forcaChute;let w=44,h=6,x=me.x-w/2,y=me.y-38;
+      ctx.fillStyle="rgba(0,0,0,0.62)";ctx.fillRect(x,y,w,h);
+      let grad=ctx.createLinearGradient(x,y,x+w,y);grad.addColorStop(0,"#00ffcc");grad.addColorStop(0.55,"#ffea00");grad.addColorStop(1,"#ff3b30");
+      ctx.fillStyle=grad;ctx.fillRect(x,y,w*pct,h);
+      ctx.strokeStyle="rgba(255,255,255,0.35)";ctx.lineWidth=1;ctx.strokeRect(x,y,w,h);
+      if(pct>0.92){ctx.fillStyle="#fff";ctx.font="bold 9px Montserrat";ctx.textAlign="center";ctx.fillText("FOGO!",me.x,y-6);}
+    }
+  } else {
+    if(!socket.connected){ctx.fillStyle="rgba(255,255,255,0.58)";ctx.font="15px Montserrat";ctx.textAlign="center";ctx.fillText("Conectando...",400,300);}
+  }
+  ctx.restore();
+  if(replaying){replayIdx+=0.38;if(replayIdx>=replayFrames.length-1){replaying=false;document.getElementById('replay-overlay').classList.remove('visivel');}}
+ }catch(e){console.error(e)}
+ requestAnimationFrame(desenhar);
+}
+desenhar();
+
+const joyManager=nipplejs.create({zone:document.getElementById('joystick-zone'),mode:'dynamic',color:'white',size:140,catchDistance:150});
+let joy={dx:0,dy:0,mov:false,active:false};
+joyManager.on('move',(e,d)=>{
+  if(!jogando) return;
+  if(isEspectador){
+    if(d.angle&&d.force>0.05){let f=Math.min(d.force*1.5,1);let dx=Math.cos(d.angle.radian)*f;let dy=-Math.sin(d.angle.radian)*f;camX=Math.max(-220,Math.min(220,camX+dx*5));camY=Math.max(-160,Math.min(160,camY+dy*5));}
+    return;
+  }
+  if(replaying) return;
+  if(d.angle&&d.force>0.05){let f=Math.min(d.force*1.5,1);joy.dx=Math.cos(d.angle.radian)*f;joy.dy=-Math.sin(d.angle.radian)*f;joy.mov=true;joy.active=true;}else{joy.mov=false;}
+});
+joyManager.on('end',()=>{joy.active=false;joy.dx=joy.dy=0;if(!isEspectador&&jogando) socket.emit('mover',{dx:0,dy:0});});
+setInterval(()=>{if(jogando&&joy.active&&!isEspectador&&!replaying){socket.emit('mover',{dx:joy.dx,dy:joy.dy});}},1000/34);
+
+const btnChute=document.getElementById('btn-chute');
+const barraWrap=document.getElementById('barra-forca-wrap');
+const barraFill=document.getElementById('barra-forca-fill');
+function iniciarCarga(e){
+  if(isEspectador||!jogando||replaying) return;
+  e.preventDefault();
+  if(carregando) return;
+  carregando=true;forcaChute=0;chargeStart=Date.now();
+  btnChute.classList.add('carregando');
+  barraWrap.style.display='block';
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  chargeInt=setInterval(()=>{
+    let elapsed=Date.now()-chargeStart;
+    forcaChute=Math.min(1,elapsed/1100);
+    barraFill.style.width=(forcaChute*100)+'%';
+    if(forcaChute>=1){btnChute.style.boxShadow='0 0 26px #ff3b30, 0 0 42px #ff9a00';}
+  },16);
+}
+function soltarCarga(e){
+  if(!carregando) return;
+  e.preventDefault();
+  carregando=false;btnChute.classList.remove('carregando');btnChute.style.boxShadow='';barraWrap.style.display='none';
+  clearInterval(chargeInt);
+  let f=Math.max(0.15,forcaChute);
+  socket.emit('chutar',{forca:f});
+  forcaChute=0;barraFill.style.width='0%';
+}
+btnChute.addEventListener('mousedown',iniciarCarga);
+btnChute.addEventListener('touchstart',iniciarCarga,{passive:false});
+window.addEventListener('mouseup',soltarCarga);
+window.addEventListener('touchend',soltarCarga);
+
+const btnCorrer=document.getElementById('btn-correr');
+function boostOn(e){e.preventDefault();if(!isEspectador&&jogando) socket.emit('correr',{ativo:true});}
+function boostOff(e){e.preventDefault();if(!isEspectador&&jogando) socket.emit('correr',{ativo:false});}
+btnCorrer.addEventListener('mousedown',boostOn);btnCorrer.addEventListener('touchstart',boostOn,{passive:false});
+btnCorrer.addEventListener('mouseup',boostOff);btnCorrer.addEventListener('mouseleave',boostOff);btnCorrer.addEventListener('touchend',boostOff);
+
+let perfilCache={};
+function abrirPerfil(nome){
+  nome=(nome||'').toUpperCase().trim();
+  if(!nome) return;
+  document.getElementById('perfil-nome').textContent=nome;
+  document.getElementById('perfil-avatar').textContent=nome[0]||'?';
+  document.getElementById('perfil-sub').textContent='Buscando dados...';
+  document.getElementById('tela-perfil').style.display='flex';
+  setTimeout(()=>document.getElementById('tela-perfil').classList.add('visivel'),10);
+  if(perfilCache[nome]){preencherPerfil(perfilCache[nome]);}
+  else{socket.emit('get_perfil',{nome:nome});}
+}
+function fecharPerfil(){
+  const tela=document.getElementById('tela-perfil');
+  tela.classList.remove('visivel');
+  setTimeout(()=>tela.style.display='none',300);
+}
+function preencherPerfil(p){
+  document.getElementById('perfil-nome').textContent=p.nome;
+  document.getElementById('perfil-sub').textContent=`${p.jogos||0} jogos • ${p.vitorias||0}V ${p.derrotas||0}D ${p.empates||0}E`;
+  document.getElementById('perfil-gols').textContent=p.gols||0;
+  document.getElementById('perfil-assist').textContent=p.assist||0;
+  document.getElementById('perfil-vitorias').textContent=p.vitorias||0;
+  document.getElementById('perfil-derrotas').textContent=p.derrotas||0;
+  document.getElementById('perfil-empates').textContent=p.empates||0;
+  document.getElementById('perfil-jogos').textContent=p.jogos||0;
+  document.getElementById('perfil-mvp').textContent=p.mvp||0;
+  document.getElementById('perfil-aproveitamento').textContent=(p.aproveitamento||0)+'%';
+}
+socket.on('perfil_dados',(p)=>{perfilCache[p.nome]=p;preencherPerfil(p);});
+function kickar(id){ if(confirm('Kickar esse jogador?')) socket.emit('kickar_jogador',{sid:id}); }
+function mutar(id){ socket.emit('mutar_jogador',{sid:id}); }
+
+socket.on('disconnect', (d)=>{
+  document.getElementById('controles').style.display='none';
+  const placar=document.getElementById('placar-tv');
+  if(placar) placar.classList.remove('visivel');
+  document.getElementById('espectador-badge').style.display='none';
+  document.body.classList.remove('in-game');
+  jogando=false; isEspectador=false; estadoJogo=null;
+});
+// Função para disparar o emote
+function mandarEmote(em) {
+    if (jogando && !isEspectador) {
+        socket.emit('mandar_emote', { emote: em });
+    }
+
+// ==========================================
+// SUPORTE A TECLADO (PC) - 100% BLINDADO
+// ==========================================
+
+// 1. Garantir que a função do emote existe aqui para não dar crash!
+window.mandarEmote = function(em) {
+    if (jogando && !isEspectador) {
+        socket.emit('mandar_emote', { emote: em });
+    }
+};
+
+const teclado = { w: false, a: false, s: false, d: false };
+
+function atualizarMovimentoTeclado() {
+    if (joy.mov) return; // Ignora o teclado se estiver a usar o telemóvel
+    
+    let dx = 0, dy = 0;
+    if (teclado.w) dy -= 1;
+    if (teclado.s) dy += 1;
+    if (teclado.a) dx -= 1;
+    if (teclado.d) dx += 1;
+
+    if (dx !== 0 || dy !== 0) {
+        let length = Math.hypot(dx, dy);
+        joy.dx = dx / length;
+        joy.dy = dy / length;
+        joy.active = true;
+        joy.usandoTeclado = true;
+    } else if (joy.usandoTeclado) {
+        joy.dx = 0;
+        joy.dy = 0;
+        joy.active = false;
+        joy.usandoTeclado = false;
+        if (!isEspectador && jogando) socket.emit('mover', { dx: 0, dy: 0 });
+    }
+}
+
+window.addEventListener('keydown', (e) => {
+    // Se estiver a escrever no chat ou a meter senha, bloqueia o jogo!
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    if (!jogando || isEspectador) return;
+
+    const key = e.key.toLowerCase();
+    
+    // Impede a Barra de Espaço e as Setas de rolarem a página ou clicarem em botões
+    if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+    }
+    
+    // Movimento
+    if (key === 'w' || e.key === 'ArrowUp') { teclado.w = true; atualizarMovimentoTeclado(); }
+    if (key === 's' || e.key === 'ArrowDown') { teclado.s = true; atualizarMovimentoTeclado(); }
+    if (key === 'a' || e.key === 'ArrowLeft') { teclado.a = true; atualizarMovimentoTeclado(); }
+    if (key === 'd' || e.key === 'ArrowRight') { teclado.d = true; atualizarMovimentoTeclado(); }
+
+    // Boost (Shift) - Passamos um objeto falso para não dar erro de preventDefault
+    if ((e.key === 'Shift' || e.code === 'ShiftLeft') && !e.repeat) {
+        boostOn({ preventDefault: () => {} }); 
+    }
+
+    // Chute (Espaço)
+    if (e.code === 'Space' && !e.repeat) {
+        iniciarCarga({ preventDefault: () => {} });
+    }
+
+    // Emotes (1, 2, 3, 4)
+    if (key === '1') mandarEmote('😂');
+    if (key === '2') mandarEmote('🤬');
+    if (key === '3') mandarEmote('🔥');
+    if (key === '4') mandarEmote('⚽');
+});
+
+window.addEventListener('keyup', (e) => {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    if (!jogando || isEspectador) return;
+
+    const key = e.key.toLowerCase();
+    
+    if (key === 'w' || e.key === 'ArrowUp') { teclado.w = false; atualizarMovimentoTeclado(); }
+    if (key === 's' || e.key === 'ArrowDown') { teclado.s = false; atualizarMovimentoTeclado(); }
+    if (key === 'a' || e.key === 'ArrowLeft') { teclado.a = false; atualizarMovimentoTeclado(); }
+    if (key === 'd' || e.key === 'ArrowRight') { teclado.d = false; atualizarMovimentoTeclado(); }
+
+    if (e.key === 'Shift' || e.code === 'ShiftLeft') {
+        boostOff({ preventDefault: () => {} });
+    }
+
+    if (e.code === 'Space') {
+        soltarCarga({ preventDefault: () => {} });
+    }
+});
+
+// Se o jogador clicar no chat a meio de uma corrida, o boneco trava imediatamente
+const chatInput = document.getElementById('chat-input');
+if (chatInput) {
+    chatInput.addEventListener('focus', () => {
+        teclado.w = teclado.a = teclado.s = teclado.d = false;
+        atualizarMovimentoTeclado();
+        if (carregando) soltarCarga({ preventDefault: () => {} });
+    });
+}
+}
+</script>
+</body>
+</html>
