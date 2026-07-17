@@ -1077,7 +1077,7 @@ async def login(sid, dados):
             await sio.emit('login_erro', {'msg': 'Senha incorreta!'}, to=sid); return
         logados[sid] = nick
         contas_global[nick]['ultimo_login'] = datetime.now().isoformat()
-        save_contas(contas_global)
+        await save_contas_db(contas_global)
         await sio.emit('login_ok', {'nick': nick}, to=sid)
         print(f"[LOGIN] {nick} logou - SID {sid}")
         await enviar_lista_salas()
@@ -1101,7 +1101,7 @@ async def criar_conta(sid, dados):
                 logados.pop(s, None)
                 await sair_sala(s)
         contas_global[nick] = {'senha': senha, 'criado_em': datetime.now().isoformat(), 'ultimo_login': datetime.now().isoformat()}
-        save_contas(contas_global)
+        await save_contas_db(contas_global)
         logados[sid] = nick
         await sio.emit('login_ok', {'nick': nick, 'novo': True}, to=sid)
         print(f"[CRIAR CONTA] {nick} criada - SID {sid}")
