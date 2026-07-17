@@ -21,7 +21,7 @@ torneios = {}
 
 
 # 1. CONEXÃO COM O MONGODB (O Render vai ler isto das Variáveis de Ambiente)
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://onoob371_db_user:banana+12345@cluster0.owtaogx.mongodb.net/?appName=Cluster0")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://onoob371_db_user:banana12345@cluster0.owtaogx.mongodb.net/?appName=Cluster0")
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = mongo_client.futgraal_db # Nome do teu banco de dados
 
