@@ -1,7 +1,9 @@
 import os, asyncio, math, traceback, random, json
+import motor.motor_asyncio
 from datetime import datetime, timedelta
 import socketio
 from aiohttp import web
+
 
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='aiohttp')
 app = web.Application()
@@ -16,59 +18,56 @@ jogadores_sala = {}
 espectadores_sala = {}
 torneios = {}
 
-RANKING_FILE = os.path.join(os.path.dirname(__file__), 'ranking.json')
-CONTAS_FILE = os.path.join(os.path.dirname(__file__), 'contas.json')
 
-def load_contas():
-    try:
-        if os.path.exists(CONTAS_FILE):
-            with open(CONTAS_FILE,'r',encoding='utf-8') as f:
-                return json.load(f)
-    except Exception as e:
-        print("Erro load contas", e)
-    return {}
 
-def save_contas(data):
-    try:
-        with open(CONTAS_FILE,'w',encoding='utf-8') as f:
-            json.dump(data,f,ensure_ascii=False,indent=2)
-    except Exception as e:
-        print("Erro save contas", e)
+# 1. CONEXÃO COM O MONGODB (O Render vai ler isto das Variáveis de Ambiente)
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://onoob371_db_user:banana+12345@cluster0.owtaogx.mongodb.net/?appName=Cluster0")
+mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
+db = mongo_client.futgraal_db # Nome do teu banco de dados
 
-contas_global = load_contas()
-logados = {}  # sid -> nick
+contas_global = {}
+ranking_global = {'semana': '', 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
+logados = {}
 
 def get_week_id():
-    # semana começa na segunda
     now = datetime.now()
     return now.strftime("%Y-W%U")
 
-def load_ranking():
-    try:
-        if os.path.exists(RANKING_FILE):
-            with open(RANKING_FILE,'r',encoding='utf-8') as f:
-                data=json.load(f)
-            # verifica se é semana nova
-            if data.get('semana') != get_week_id():
-                data = {'semana': get_week_id(), 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
-                save_ranking(data)
-            # migracao campos antigos
-            for k in ['vitorias','derrotas','empates']:
-                if k not in data:
-                    data[k]={}
-            return data
-    except Exception as e:
-        print("Erro load ranking", e)
-    return {'semana': get_week_id(), 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
+# 2. FUNÇÕES ASSÍNCRONAS QUE GRAVAM NA NUVEM
+async def save_contas_db(data):
+    try: await db.sistema.update_one({"_id": "contas"}, {"$set": {"json": data}}, upsert=True)
+    except Exception as e: print("❌ Erro Mongo Contas:", e)
+
+async def save_ranking_db(data):
+    try: await db.sistema.update_one({"_id": "ranking"}, {"$set": {"json": data}}, upsert=True)
+    except Exception as e: print("❌ Erro Mongo Ranking:", e)
+
+# 3. PONTE INVISÍVEL (Para não ter de reescrever o resto do jogo todo)
+def save_contas(data):
+    asyncio.create_task(save_contas_db(data))
 
 def save_ranking(data):
-    try:
-        with open(RANKING_FILE,'w',encoding='utf-8') as f:
-            json.dump(data,f,ensure_ascii=False,indent=2)
-    except Exception as e:
-        print("Erro save ranking", e)
+    asyncio.create_task(save_ranking_db(data))
 
-ranking_global = load_ranking()
+# 4. FUNÇÃO QUE PUXA TUDO QUANDO O SERVIDOR LIGA
+async def init_mongodb():
+    global contas_global, ranking_global
+    print("📡 A ligar ao MongoDB Atlas...")
+    try:
+        doc_c = await db.sistema.find_one({"_id": "contas"})
+        if doc_c: contas_global = doc_c.get("json", {})
+        
+        doc_r = await db.sistema.find_one({"_id": "ranking"})
+        if doc_r: 
+            ranking_global = doc_r.get("json", {})
+            if ranking_global.get('semana') != get_week_id():
+                ranking_global = {'semana': get_week_id(), 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
+                save_ranking(ranking_global)
+        else:
+            ranking_global['semana'] = get_week_id()
+        print("✅ MongoDB Conectado com Sucesso! Dados carregados.")
+    except Exception as e:
+        print("💀 ERRO CRÍTICO AO LIGAR MONGODB:", e)
 
 def update_ranking_gol(nome, qtd=1):
     global ranking_global
@@ -503,13 +502,13 @@ async def admin_api_ranking_reset(request):
 
 async def admin_contas_json(request):
     if not check_admin(request): return web.Response(status=401, text="Unauthorized - ?key=futgraal123")
-    if os.path.exists(CONTAS_FILE): return web.FileResponse(CONTAS_FILE)
-    return web.Response(text="{}", content_type='application/json')
+    # Agora ele entrega os dados diretamente da memória (que veio do MongoDB)
+    return web.json_response(contas_global)
 
 async def admin_ranking_json(request):
     if not check_admin(request): return web.Response(status=401)
-    if os.path.exists(RANKING_FILE): return web.FileResponse(RANKING_FILE)
-    return web.Response(text="{}", content_type='application/json')
+    # Entrega o ranking atualizado em tempo real da nuvem
+    return web.json_response(ranking_global)
 
 app.router.add_get('/admin', admin_page)
 app.router.add_get('/admin/contas', admin_page)  # redireciona pro painel novo
@@ -1447,7 +1446,9 @@ async def mandar_emote(sid, dados):
             jogo['jogadores'][sid]['emote_timer'] = 120
 
 async def start(app):
-    app['f']=asyncio.create_task(loop_fisica()); app['t']=asyncio.create_task(loop_tempo())
+    await init_mongodb() # <-- Espera o Banco de Dados carregar primeiro!
+    app['f']=asyncio.create_task(loop_fisica())
+    app['t']=asyncio.create_task(loop_tempo())
 app.on_startup.append(start)
 if __name__=='__main__':
     p=int(os.environ.get("PORT",8080)); print(f"V4.0 MVP+RANKING+TORNEIO+CLIMA http://localhost:{p}"); web.run_app(app,port=p,host='0.0.0.0')
