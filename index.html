@@ -137,6 +137,8 @@ body.in-game #game-wrapper{display:flex !important}
 }
 #controles .botao-acao, #joystick-zone{pointer-events:auto}
 
+
+
 /* === NOVA TELA FIM DE JOGO COM ESTATISTICAS === */
 #tela-fim-jogo{
   display:none;
@@ -356,6 +358,7 @@ body.in-game #game-wrapper{display:flex !important}
   .escudo-grande{ width:48px; height:48px; font-size:16px }
 }
 
+
 /* === TELA LOGIN / CRIAR CONTA === */
 #tela-login{
   position:absolute;
@@ -446,6 +449,7 @@ body.in-game #game-wrapper{display:flex !important}
   background: rgba(0,255,204,0.10); border:1px solid rgba(0,255,204,0.22);
   border-radius:8px; color:#00ffcc; font-size:11px; font-weight:700; display:none;
 }
+
 
 /* === FADE ANIMATIONS - FIM DO CORTE SECO === */
 @keyframes fadeInSoft{ from{opacity:0; transform:translateY(14px) scale(0.97)} to{opacity:1; transform:translateY(0) scale(1)} }
@@ -725,6 +729,7 @@ body.in-game #game-wrapper{display:flex !important}
   <button id="btn-chute" class="botao-acao">CHUTE<br><span style="font-size:9px;opacity:0.85">SEGURA</span></button>
 </div>
 
+
 <div id="tela-perfil">
   <div class="perfil-card">
     <div class="perfil-avatar" id="perfil-avatar">?</div>
@@ -743,6 +748,7 @@ body.in-game #game-wrapper{display:flex !important}
     <button id="btn-fechar-perfil" onclick="fecharPerfil()">FECHAR ✕</button>
   </div>
 </div>
+
 
 <style>
 #owner-config select, #owner-config input, #owner-config input[type="color"], #owner-config button {
@@ -1635,7 +1641,7 @@ function mandarEmote(em) {
     if (jogando && !isEspectador) {
         socket.emit('mandar_emote', { emote: em });
     }
-}
+
 // ==========================================
 // SUPORTE A TECLADO (PC) - 100% BLINDADO
 // ==========================================
@@ -1650,7 +1656,7 @@ window.mandarEmote = function(em) {
 const teclado = { w: false, a: false, s: false, d: false };
 
 function atualizarMovimentoTeclado() {
-    if (false) { // FIX: removido bloqueio joy.mov }
+    if (joy.mov) return; // Ignora o teclado se estiver a usar o telemóvel
     
     let dx = 0, dy = 0;
     if (teclado.w) dy -= 1;
@@ -1739,99 +1745,5 @@ if (chatInput) {
 }
 }
 </script>
-<script>// ==========================================
-// SUPORTE A TECLADO V2 - SEM DELAY - MODO GIGANTE
-// ==========================================
-window.mandarEmote = function(em) {
-    if (jogando && !isEspectador) {
-        socket.emit('mandar_emote', { emote: em });
-    }
-};
-
-// Estado desacoplado - FIX DO DELAY
-const keys = { w:false, a:false, s:false, d:false, ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
-let keyboardActive = false;
-let lastKeyEmit = 0;
-
-function getKeyboardVec(){
-    let dx=0, dy=0;
-    if(keys.w || keys.ArrowUp) dy-=1;
-    if(keys.s || keys.ArrowDown) dy+=1;
-    if(keys.a || keys.ArrowLeft) dx-=1;
-    if(keys.d || keys.ArrowRight) dx+=1;
-    if(dx===0 && dy===0) return null;
-    const len = Math.hypot(dx,dy);
-    return {dx:dx/len, dy:dy/len};
-}
-
-// Loop 60Hz que emite continuo - igual joystick
-setInterval(()=>{
-    if(!jogando || isEspectador || replaying) return;
-    if(joy && joy.mov && joy.active && Date.now() - (joy.lastMove||0) < 150) return;
-    const vec = getKeyboardVec();
-    const now = performance.now();
-    if(now - lastKeyEmit < 16) return;
-    if(vec){
-        socket.emit('mover', vec);
-        keyboardActive = true;
-        lastKeyEmit = now;
-    } else if(keyboardActive){
-        socket.emit('mover', {dx:0, dy:0});
-        keyboardActive = false;
-        lastKeyEmit = now;
-    }
-}, 1000/60);
-
-window.addEventListener('keydown', (e) => {
-    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-    if (!jogando || isEspectador) return;
-    const k = e.key;
-    if(k in keys) keys[k]=true;
-    if([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
-    if((e.key === 'Shift' || e.code === 'ShiftLeft') && !e.repeat) boostOn({ preventDefault:()=>{} });
-    if(e.code === 'Space' && !e.repeat){ e.preventDefault(); iniciarCarga({ preventDefault:()=>{} }); }
-    if(k==='1') mandarEmote('😂'); if(k==='2') mandarEmote('🤬'); if(k==='3') mandarEmote('🔥'); if(k==='4') mandarEmote('⚽');
-});
-window.addEventListener('keyup', (e) => {
-    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-    const k = e.key;
-    if(k in keys) keys[k]=false;
-    if(e.key === 'Shift' || e.code === 'ShiftLeft') boostOff({ preventDefault:()=>{} });
-    if(e.code === 'Space'){ e.preventDefault(); soltarCarga({ preventDefault:()=>{} }); }
-});
-const chatInput = document.getElementById('chat-input');
-if (chatInput) {
-    chatInput.addEventListener('focus', () => {
-        Object.keys(keys).forEach(k=>keys[k]=false);
-        if(keyboardActive){ socket.emit('mover',{dx:0,dy:0}); keyboardActive=false; }
-        if(carregando) soltarCarga({ preventDefault:()=>{} });
-    });
-}
-</script>
-
-<style>
-.floating-widget{
-  position:fixed;top:12px;right:12px;
-  background:linear-gradient(180deg,#2a2a00,#111);
-  border:2px solid #ffea00;
-  padding:8px 14px;
-  border-radius:20px;
-  font-size:13px;
-  font-weight:900;
-  z-index:9999;
-  color:#ffea00;
-  box-shadow:0 4px 12px rgba(0,0,0,0.6);
-  display:flex;
-  align-items:center;
-  gap:6px;
-}
-.floating-button{
-  position:fixed;top:52px;right:12px;
-  background:#00ffcc;color:#000;
-  border:none;padding:6px 12px;border-radius:15px;
-  font-size:11px;font-weight:900;z-index:9999;cursor:pointer;
-}
-</style>
-
 </body>
 </html>
