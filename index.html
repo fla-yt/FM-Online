@@ -1641,7 +1641,7 @@ function mandarEmote(em) {
     if (jogando && !isEspectador) {
         socket.emit('mandar_emote', { emote: em });
     }
-
+}
 // ==========================================
 // SUPORTE A TECLADO (PC) - 100% BLINDADO
 // ==========================================
@@ -1656,7 +1656,7 @@ window.mandarEmote = function(em) {
 const teclado = { w: false, a: false, s: false, d: false };
 
 function atualizarMovimentoTeclado() {
-    if (joy.mov) return; // Ignora o teclado se estiver a usar o telemóvel
+    if (false) { // FIX: removido bloqueio joy.mov }
     
     let dx = 0, dy = 0;
     if (teclado.w) dy -= 1;
@@ -1745,5 +1745,220 @@ if (chatInput) {
 }
 }
 </script>
+<script>// ==========================================
+// SUPORTE A TECLADO V2 - SEM DELAY - MODO GIGANTE
+// ==========================================
+window.mandarEmote = function(em) {
+    if (jogando && !isEspectador) {
+        socket.emit('mandar_emote', { emote: em });
+    }
+};
+
+// Estado desacoplado - FIX DO DELAY
+const keys = { w:false, a:false, s:false, d:false, ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
+let keyboardActive = false;
+let lastKeyEmit = 0;
+
+function getKeyboardVec(){
+    let dx=0, dy=0;
+    if(keys.w || keys.ArrowUp) dy-=1;
+    if(keys.s || keys.ArrowDown) dy+=1;
+    if(keys.a || keys.ArrowLeft) dx-=1;
+    if(keys.d || keys.ArrowRight) dx+=1;
+    if(dx===0 && dy===0) return null;
+    const len = Math.hypot(dx,dy);
+    return {dx:dx/len, dy:dy/len};
+}
+
+// Loop 60Hz que emite continuo - igual joystick
+setInterval(()=>{
+    if(!jogando || isEspectador || replaying) return;
+    if(joy && joy.mov && joy.active && Date.now() - (joy.lastMove||0) < 150) return;
+    const vec = getKeyboardVec();
+    const now = performance.now();
+    if(now - lastKeyEmit < 16) return;
+    if(vec){
+        socket.emit('mover', vec);
+        keyboardActive = true;
+        lastKeyEmit = now;
+    } else if(keyboardActive){
+        socket.emit('mover', {dx:0, dy:0});
+        keyboardActive = false;
+        lastKeyEmit = now;
+    }
+}, 1000/60);
+
+window.addEventListener('keydown', (e) => {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    if (!jogando || isEspectador) return;
+    const k = e.key;
+    if(k in keys) keys[k]=true;
+    if([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
+    if((e.key === 'Shift' || e.code === 'ShiftLeft') && !e.repeat) boostOn({ preventDefault:()=>{} });
+    if(e.code === 'Space' && !e.repeat){ e.preventDefault(); iniciarCarga({ preventDefault:()=>{} }); }
+    if(k==='1') mandarEmote('😂'); if(k==='2') mandarEmote('🤬'); if(k==='3') mandarEmote('🔥'); if(k==='4') mandarEmote('⚽');
+});
+window.addEventListener('keyup', (e) => {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    const k = e.key;
+    if(k in keys) keys[k]=false;
+    if(e.key === 'Shift' || e.code === 'ShiftLeft') boostOff({ preventDefault:()=>{} });
+    if(e.code === 'Space'){ e.preventDefault(); soltarCarga({ preventDefault:()=>{} }); }
+});
+const chatInput = document.getElementById('chat-input');
+if (chatInput) {
+    chatInput.addEventListener('focus', () => {
+        Object.keys(keys).forEach(k=>keys[k]=false);
+        if(keyboardActive){ socket.emit('mover',{dx:0,dy:0}); keyboardActive=false; }
+        if(carregando) soltarCarga({ preventDefault:()=>{} });
+    });
+}
+</script>
+<script>
+// MODO GIGANTE - FUTCOINS HUD + BETA DETECT
+(function(){
+  const hud = document.createElement('div');
+  hud.id='futcoins-hud';
+  hud.style.cssText='position:fixed;top:8px;right:8px;background:rgba(0,0,0,0.75);border:1px solid #ffea00;padding:6px 12px;border-radius:20px;font-size:12px;z-index:9999;color:#ffea00;display:none';
+  document.body.appendChild(hud);
+  socket.on('futcoins_update', (d)=>{
+    hud.style.display='block';
+    hud.textContent = `💰 ${d.futcoins} FUTCOINS`;
+  });
+  socket.on('loja_dados', (l)=> console.log('[LOJA 24h]', l));
+  socket.on('compra_ok', (d)=> alert(`Comprou ${d.item.nome}! Saldo: ${d.futcoins}`));
+  socket.on('compra_erro', (d)=> alert(d.msg));
+  setTimeout(()=>{ socket.emit('get_futcoins'); socket.emit('get_loja'); }, 1200);
+  
+  // Detecta beta
+  const isBeta = window.location.pathname.includes('/beta') || window.location.search.includes('beta');
+  if(isBeta){
+    const badge = document.createElement('div');
+    badge.textContent='🧪 MODO BETA';
+    badge.style.cssText='position:fixed;top:8px;left:8px;background:#ff3b30;color:#fff;padding:4px 8px;border-radius:10px;font-size:10px;z-index:9999;font-weight:900';
+    document.body.appendChild(badge);
+  }
+})();
+</script>
+
+
+<style>
+#futcoins-hud-v2{
+  position:fixed;top:12px;right:12px;
+  background:linear-gradient(180deg,#2a2a00,#111);
+  border:2px solid #ffea00;
+  padding:8px 14px;
+  border-radius:20px;
+  font-size:13px;
+  font-weight:900;
+  z-index:9999;
+  color:#ffea00;
+  box-shadow:0 4px 12px rgba(0,0,0,0.6);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+#futcoins-hud-v2 small{font-size:10px;opacity:0.7}
+#loja-btn{
+  position:fixed;top:52px;right:12px;
+  background:#00ffcc;color:#000;
+  border:none;padding:6px 12px;border-radius:15px;
+  font-size:11px;font-weight:900;z-index:9999;cursor:pointer;
+}
+</style>
+
+<div id="futcoins-hud-v2" style="display:none">💰 0 <small>FUTCOINS</small></div>
+<button id="loja-btn" onclick="abrirLoja()" style="display:none">🛒 LOJA 24h</button>
+
+<div id="loja-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#111;border:2px solid #ffea00;border-radius:16px;padding:16px;max-width:360px;width:100%">
+    <h3 style="margin:0 0 10px;text-align:center">🛒 LOJA - TROCA EM 24h</h3>
+    <div id="loja-itens" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div id="loja-timer" style="font-size:10px;opacity:0.6;text-align:center;margin-top:8px"></div>
+    <button onclick="fecharLoja()" style="width:100%;margin-top:10px;padding:10px;background:#333;color:#fff;border:none;border-radius:8px;font-weight:800">FECHAR</button>
+  </div>
+</div>
+
+<script>
+// FUTCOINS - MODO LOBBY FIX
+(function(){
+  let meusFutcoins = 0;
+  let minhaLoja = null;
+  
+  function mostrarFutcoins(qtd){
+    const hud = document.getElementById('futcoins-hud-v2');
+    const btn = document.getElementById('loja-btn');
+    if(hud){
+      hud.style.display='flex';
+      hud.innerHTML = `💰 ${qtd} <small>FUTCOINS</small>`;
+      meusFutcoins = qtd;
+    }
+    if(btn) btn.style.display='block';
+  }
+
+  window.abrirLoja = function(){
+    const modal = document.getElementById('loja-modal');
+    const div = document.getElementById('loja-itens');
+    if(!minhaLoja || !minhaLoja.itens){ socket.emit('get_loja'); return; }
+    div.innerHTML = '';
+    minhaLoja.itens.forEach(item=>{
+      const el = document.createElement('div');
+      el.style.cssText='background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px;display:flex;justify-content:space-between;align-items:center';
+      el.innerHTML = `<div><b>${item.emoji} ${item.nome}</b><br><small style="opacity:0.6">${item.raridade} - ${item.preco} futcoins</small></div><button onclick="comprar('${item.id}')" style="background:${meusFutcoins>=item.preco?'#00ffcc':'#333'};color:${meusFutcoins>=item.preco?'#000':'#888'};border:none;padding:6px 10px;border-radius:8px;font-weight:900;font-size:11px">${meusFutcoins>=item.preco?'COMPRAR':'SEM SALDO'}</button>`;
+      div.appendChild(el);
+    });
+    const timer = document.getElementById('loja-timer');
+    if(minhaLoja.expira_em){
+      try{
+        const expira = new Date(minhaLoja.expira_em);
+        const agora = new Date();
+        const diff = Math.max(0, expira - agora);
+        const h = Math.floor(diff/3600000);
+        const m = Math.floor((diff%3600000)/60000);
+        timer.textContent = `Nova loja em: ${h}h ${m}min`;
+      }catch(e){}
+    }
+    modal.style.display='flex';
+  }
+  window.fecharLoja = function(){ document.getElementById('loja-modal').style.display='none'; }
+  window.comprar = function(id){ if(confirm('Comprar?')) socket.emit('comprar_item',{id}); }
+
+  socket.on('futcoins_update', (d)=>{
+    console.log('[FUTCOINS]', d);
+    mostrarFutcoins(d.futcoins);
+  });
+  socket.on('loja_dados', (loja)=>{
+    console.log('[LOJA]', loja);
+    minhaLoja = loja;
+  });
+  socket.on('compra_ok', (d)=>{
+    alert(`✅ Comprou ${d.item.nome} por ${d.item.preco}!`);
+    mostrarFutcoins(d.futcoins);
+    fecharLoja();
+  });
+  socket.on('compra_erro', (d)=> alert('❌ '+d.msg));
+
+  // Pede futcoins assim que logar, não só quando entra na sala
+  const oldLoginOk = socket._callbacks && socket._callbacks['$login_ok'];
+  socket.on('login_ok', (d)=>{
+    setTimeout(()=>{ socket.emit('get_futcoins'); socket.emit('get_loja'); }, 500);
+  });
+  // Também tenta a cada 3s no lobby até aparecer
+  let tentativas = 0;
+  const intervalo = setInterval(()=>{
+    tentativas++;
+    if(document.getElementById('futcoins-hud-v2').style.display!=='none' || tentativas>10){
+      clearInterval(intervalo);
+      return;
+    }
+    socket.emit('get_futcoins');
+    socket.emit('get_loja');
+  }, 2000);
+
+  // Se já estiver logado (localStorage), pede direto
+  setTimeout(()=>{ socket.emit('get_futcoins'); socket.emit('get_loja'); }, 1500);
+})();
+</script>
+
 </body>
 </html>
