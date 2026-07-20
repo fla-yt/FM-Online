@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import socketio
 from aiohttp import web
 
+
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='aiohttp')
 app = web.Application()
 sio.attach(app)
@@ -17,8 +18,10 @@ jogadores_sala = {}
 espectadores_sala = {}
 torneios = {}
 
+
+
 # 1. CONEXÃO COM O MONGODB (O Render vai ler isto das Variáveis de Ambiente)
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://onoob371_db_user:banana+12345@cluster0.owtaogx.mongodb.net/?appName=Cluster0")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://onoob371_db_user:banana12345@cluster0.owtaogx.mongodb.net/?appName=Cluster0")
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = mongo_client.futgraal_db # Nome do teu banco de dados
 
@@ -32,14 +35,18 @@ def get_week_id():
 
 # 2. FUNÇÕES ASSÍNCRONAS QUE GRAVAM NA NUVEM
 async def save_contas_db(data):
-    try: await db.sistema.update_one({"_id": "contas"}, {"$set": {"json": data}}, upsert=True)
+    try: 
+        await db.sistema.update_one({"_id": "contas"}, {"$set": {"json": data}}, upsert=True)
+        print("✅ Contas salvas no Atlas")
     except Exception as e: print("❌ Erro Mongo Contas:", e)
 
 async def save_ranking_db(data):
-    try: await db.sistema.update_one({"_id": "ranking"}, {"$set": {"json": data}}, upsert=True)
+    try: 
+        await db.sistema.update_one({"_id": "ranking"}, {"$set": {"json": data}}, upsert=True)
+        print("✅ Ranking salvo no Atlas")
     except Exception as e: print("❌ Erro Mongo Ranking:", e)
 
-# 3. PONTE INVISÍVEL (Para não ter de reescrever o resto do jogo todo)
+# 3. PONTE INVISÍVEL (Para compatibilidade com funções sync antigas)
 def save_contas(data):
     asyncio.create_task(save_contas_db(data))
 
@@ -54,19 +61,25 @@ async def init_mongodb():
         doc_c = await db.sistema.find_one({"_id": "contas"})
         if doc_c: 
             contas_global = doc_c.get("json", {})
-
+            print(f"📂 {len(contas_global)} contas carregadas")
+        else:
+            print("Criando coleção contas pela primeira vez...")
+            await db.sistema.update_one({"_id": "contas"}, {"$set": {"json": {}}}, upsert=True)
         
         doc_r = await db.sistema.find_one({"_id": "ranking"})
         if doc_r: 
             ranking_global = doc_r.get("json", {})
             if ranking_global.get('semana') != get_week_id():
                 ranking_global = {'semana': get_week_id(), 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
-                save_ranking(ranking_global)
+                await save_ranking_db(ranking_global)
         else:
             ranking_global['semana'] = get_week_id()
+            print("Criando coleção ranking pela primeira vez...")
+            await db.sistema.update_one({"_id": "ranking"}, {"$set": {"json": ranking_global}}, upsert=True)
         print("✅ MongoDB Conectado com Sucesso! Dados carregados.")
     except Exception as e:
         print("💀 ERRO CRÍTICO AO LIGAR MONGODB:", e)
+        traceback.print_exc()
 
 def update_ranking_gol(nome, qtd=1):
     global ranking_global
@@ -136,6 +149,7 @@ def update_ranking_resultados(jogo, vencedor):
                 update_ranking_derrota(nome,1)
     except Exception as e:
         print("Erro ranking resultados", e)
+
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASS", "futgraal123")  # troque aqui
 
@@ -382,7 +396,7 @@ async def admin_api_contas_delete(request):
     nick = str(data.get('nick','')).upper()
     if nick in contas_global:
         del contas_global[nick]
-        save_contas(contas_global)
+        await save_contas_db(contas_global)
         # kick se online
         for sid, n in list(logados.items()):
             if n==nick:
@@ -401,7 +415,7 @@ async def admin_api_contas_edit(request):
     if len(senha)<3: return web.json_response({'ok': False, 'msg': 'Senha curta'}, status=400)
     if nick in contas_global:
         contas_global[nick]['senha']=senha
-        save_contas(contas_global)
+        await save_contas_db(contas_global)
         return web.json_response({'ok': True})
     return web.json_response({'ok': False}, status=404)
 
@@ -413,7 +427,7 @@ async def admin_api_contas_create(request):
     if len(nick)<3 or len(senha)<3: return web.json_response({'ok': False}, status=400)
     if nick in contas_global: return web.json_response({'ok': False, 'msg': 'Já existe'}, status=400)
     contas_global[nick]={'senha': senha, 'criado_em': datetime.now().isoformat(), 'ultimo_login': ''}
-    save_contas(contas_global)
+    await save_contas_db(contas_global)
     return web.json_response({'ok': True})
 
 async def admin_api_salas(request):
@@ -494,7 +508,7 @@ async def admin_api_ranking_reset(request):
     if not check_admin(request): return web.Response(status=401)
     global ranking_global
     ranking_global = {'semana': get_week_id(), 'artilheiros': {}, 'assistentes': {}, 'mvp': {}, 'jogos': {}, 'vitorias': {}, 'derrotas': {}, 'empates': {}}
-    save_ranking(ranking_global)
+    await save_ranking_db(ranking_global)
     await sio.emit('ranking_atualizado', ranking_global)
     return web.json_response({'ok': True})
 
@@ -525,6 +539,8 @@ app.router.add_post('/admin/api/jogadores/kick_todos', admin_api_kick_todos)
 app.router.add_get('/admin/api/ranking', admin_api_ranking)
 app.router.add_post('/admin/api/ranking/reset', admin_api_ranking_reset)
 # ============== FIM ADMIN ==============
+
+
 
 async def enviar_lista_salas():
     lista=[]
@@ -1056,7 +1072,7 @@ async def login(sid, dados):
             await sio.emit('login_erro', {'msg': 'Senha incorreta!'}, to=sid); return
         logados[sid] = nick
         contas_global[nick]['ultimo_login'] = datetime.now().isoformat()
-        save_contas(contas_global)
+        await save_contas_db(contas_global)
         await sio.emit('login_ok', {'nick': nick}, to=sid)
         print(f"[LOGIN] {nick} logou - SID {sid}")
         await enviar_lista_salas()
@@ -1080,7 +1096,7 @@ async def criar_conta(sid, dados):
                 logados.pop(s, None)
                 await sair_sala(s)
         contas_global[nick] = {'senha': senha, 'criado_em': datetime.now().isoformat(), 'ultimo_login': datetime.now().isoformat()}
-        save_contas(contas_global)
+        await save_contas_db(contas_global)
         logados[sid] = nick
         await sio.emit('login_ok', {'nick': nick, 'novo': True}, to=sid)
         print(f"[CRIAR CONTA] {nick} criada - SID {sid}")
@@ -1401,6 +1417,7 @@ async def mutar_jogador(sid,dados):
             await sio.emit('mutado_status', {'sid':target_sid,'mutado':True}, room=sala)
     except Exception as e:
         print("Erro mutar", e)
+
 
 @sio.event
 async def voltar_sala_espera(sid):
