@@ -9,61 +9,6 @@ sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='aiohttp')
 app = web.Application()
 sio.attach(app)
 
-# ==================== CONFIG V2 - OPÇÃO B ====================
-class ConfigV2:
-    ENV = os.environ.get("ENV", "production") # production | beta | dev
-    BETA_PREFIX = "BETA_"
-    OWNER_SALA = "OWNER_LAB"
-    FUTCOINS_INICIAL = 100
-    LOJA_HORAS = 24
-
-print(f"[CONFIG V2] ENV={ConfigV2.ENV} | Beta prefix={ConfigV2.BETA_PREFIX} | Owner sala={ConfigV2.OWNER_SALA}")
-
-# Helpers filtro salas
-def sala_eh_beta(nome):
-    return nome.upper().startswith(ConfigV2.BETA_PREFIX)
-
-def sala_eh_owner(nome):
-    return nome.upper() == ConfigV2.OWNER_SALA
-
-def pode_listar_sala(nome):
-    # OWNER_LAB nunca aparece na lista
-    if sala_eh_owner(nome):
-        return False
-    # Em produção, esconde salas BETA_
-    if ConfigV2.ENV == "production" and sala_eh_beta(nome):
-        return False
-    # Em beta, mostra tudo
-    return True
-
-# Economia
-import datetime as _dt
-ITENS_BASE = [
-  {"id":"hat_cap", "nome":"Bone Estiloso", "tipo":"hat", "preco":50, "raridade":"comum", "emoji":"🧢"},
-  {"id":"hat_crown", "nome":"Coroa", "tipo":"hat", "preco":500, "raridade":"lendario", "emoji":"👑"},
-  {"id":"skin_neon", "nome":"Rastro Neon", "tipo":"skin", "preco":200, "raridade":"raro", "emoji":"✨"},
-  {"id":"skin_fire", "nome":"Rastro Fogo", "tipo":"skin", "preco":350, "raridade":"epico", "emoji":"🔥"},
-  {"id":"emote_pack", "nome":"Pack Emotes", "tipo":"emote", "preco":100, "raridade":"comum", "emoji":"😂"},
-]
-loja_atual = {"itens": [], "expira_em": None, "gerada_em": None}
-
-def gerar_loja_diaria():
-    global loja_atual
-    import random, datetime
-    itens = random.sample(ITENS_BASE, k=min(4, len(ITENS_BASE)))
-    agora = datetime.datetime.now()
-    loja_atual = {
-        "itens": itens,
-        "gerada_em": agora.isoformat(),
-        "expira_em": (agora + datetime.timedelta(hours=ConfigV2.LOJA_HORAS)).isoformat()
-    }
-    print(f"[LOJA] Nova loja: {[i['id'] for i in itens]}")
-    return loja_atual
-
-gerar_loja_diaria()
-# ==================== FIM CONFIG V2 ====================
-
-
 W,H = 800,600
 ATR_BOLA, ATR_JOG = 0.96, 0.85
 G_SUP, G_INF = 200,400
@@ -75,7 +20,7 @@ torneios = {}
 
 
 
-# 1. CONEXÃO COM O MONGODB (O Render vai ler isto das Variáveis de Ambiente)
+# 1. CONEXÃƒO COM O MONGODB (O Render vai ler isto das VariÃ¡veis de Ambiente)
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://onoob371_db_user:banana+12345@cluster0.owtaogx.mongodb.net/?appName=Cluster0")
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = mongo_client.futgraal_db # Nome do teu banco de dados
@@ -88,35 +33,29 @@ def get_week_id():
     now = datetime.now()
     return now.strftime("%Y-W%U")
 
-# 2. FUNÇÕES ASSÍNCRONAS QUE GRAVAM NA NUVEM
+# 2. FUNÃ‡Ã•ES ASSÃNCRONAS QUE GRAVAM NA NUVEM
 async def save_contas_db(data):
     try: await db.sistema.update_one({"_id": "contas"}, {"$set": {"json": data}}, upsert=True)
-    except Exception as e: print("❌ Erro Mongo Contas:", e)
+    except Exception as e: print("âŒ Erro Mongo Contas:", e)
 
 async def save_ranking_db(data):
     try: await db.sistema.update_one({"_id": "ranking"}, {"$set": {"json": data}}, upsert=True)
-    except Exception as e: print("❌ Erro Mongo Ranking:", e)
+    except Exception as e: print("âŒ Erro Mongo Ranking:", e)
 
-# 3. PONTE INVISÍVEL (Para não ter de reescrever o resto do jogo todo)
+# 3. PONTE INVISÃVEL (Para nÃ£o ter de reescrever o resto do jogo todo)
 def save_contas(data):
     asyncio.create_task(save_contas_db(data))
 
 def save_ranking(data):
     asyncio.create_task(save_ranking_db(data))
 
-# 4. FUNÇÃO QUE PUXA TUDO QUANDO O SERVIDOR LIGA
+# 4. FUNÃ‡ÃƒO QUE PUXA TUDO QUANDO O SERVIDOR LIGA
 async def init_mongodb():
     global contas_global, ranking_global
-    print("📡 A ligar ao MongoDB Atlas...")
+    print("ðŸ“¡ A ligar ao MongoDB Atlas...")
     try:
         doc_c = await db.sistema.find_one({"_id": "contas"})
-        if doc_c: 
-            contas_global = doc_c.get("json", {})
-            # V2 - migra contas antigas para futcoins
-            for nick in contas_global:
-                if 'futcoins' not in contas_global[nick]:
-                    contas_global[nick]['futcoins'] = ConfigV2.FUTCOINS_INICIAL
-                    contas_global[nick]['inventario'] = []
+        if doc_c: contas_global = doc_c.get("json", {})
         
         doc_r = await db.sistema.find_one({"_id": "ranking"})
         if doc_r: 
@@ -126,9 +65,9 @@ async def init_mongodb():
                 save_ranking(ranking_global)
         else:
             ranking_global['semana'] = get_week_id()
-        print("✅ MongoDB Conectado com Sucesso! Dados carregados.")
+        print("âœ… MongoDB Conectado com Sucesso! Dados carregados.")
     except Exception as e:
-        print("💀 ERRO CRÍTICO AO LIGAR MONGODB:", e)
+        print("ðŸ’€ ERRO CRÃTICO AO LIGAR MONGODB:", e)
 
 def update_ranking_gol(nome, qtd=1):
     global ranking_global
@@ -211,10 +150,10 @@ app.router.add_get('/', index)
 def check_admin(request):
     # Verifica senha via ?key= ou header ou cookie simples
     key = request.query.get('key','') or request.headers.get('X-Admin-Key','')
-    # Permite se não tem senha configurada ou se bate
+    # Permite se nÃ£o tem senha configurada ou se bate
     if key == ADMIN_PASSWORD:
         return True
-    # Também aceita cookie
+    # TambÃ©m aceita cookie
     if request.cookies.get('admin_key') == ADMIN_PASSWORD:
         return True
     return False
@@ -224,7 +163,7 @@ async def admin_page(request):
     p=os.path.join(os.path.dirname(__file__),'admin.html')
     if os.path.exists(p):
         return web.FileResponse(p)
-    # Se não existe admin.html, retorna versão inline
+    # Se nÃ£o existe admin.html, retorna versÃ£o inline
     html = open_admin_html()
     return web.Response(text=html, content_type='text/html')
 
@@ -255,10 +194,10 @@ th{color:#888;font-size:10px;letter-spacing:0.6px}
 </style>
 </head>
 <body>
-<h1>⚽ FUTGRAAL ADMIN</h1>
+<h1>âš½ FUTGRAAL ADMIN</h1>
 <div id="login-box" class="card" style="max-width:360px">
   <h3>Login Admin</h3>
-  <p style="font-size:12px;opacity:0.6">Senha padrão: futgraal123 (troque em ADMIN_PASSWORD no servidor.py)</p>
+  <p style="font-size:12px;opacity:0.6">Senha padrÃ£o: futgraal123 (troque em ADMIN_PASSWORD no servidor.py)</p>
   <input id="admin-pass" type="password" placeholder="Senha admin" style="width:100%;margin:8px 0">
   <button class="btn" onclick="loginAdmin()">Entrar</button>
   <div id="login-err" style="color:#ff7a7a;font-size:11px;margin-top:6px;display:none"></div>
@@ -273,26 +212,26 @@ th{color:#888;font-size:10px;letter-spacing:0.6px}
   </div>
 
   <div class="card">
-    <h3>🎮 Salas Ativas</h3>
+    <h3>ðŸŽ® Salas Ativas</h3>
     <div id="lista-salas-admin">Carregando...</div>
     <button class="btn-ghost" onclick="loadSalas()">Atualizar</button>
   </div>
 
   <div class="card">
-    <h3>👥 Contas & Logados</h3>
+    <h3>ðŸ‘¥ Contas & Logados</h3>
     <div style="display:flex;gap:8px;margin-bottom:8px">
       <input id="busca-conta" placeholder="Buscar nick" oninput="filtrarContas()">
       <button class="btn-ghost" onclick="loadContas()">Atualizar</button>
     </div>
     <div style="overflow:auto;max-height:320px">
-      <table><thead><tr><th>NICK</th><th>SENHA</th><th>STATUS</th><th>CRIADO</th><th>ULTIMO LOGIN</th><th>AÇÕES</th></tr></thead>
+      <table><thead><tr><th>NICK</th><th>SENHA</th><th>STATUS</th><th>CRIADO</th><th>ULTIMO LOGIN</th><th>AÃ‡Ã•ES</th></tr></thead>
       <tbody id="tbody-contas"></tbody></table>
     </div>
   </div>
 
   <div class="grid">
     <div class="card">
-      <h3>🏆 Ranking</h3>
+      <h3>ðŸ† Ranking</h3>
       <div id="ranking-preview" style="font-size:12px;max-height:200px;overflow:auto"></div>
       <div style="margin-top:8px;display:flex;gap:8px">
         <button class="btn-danger" onclick="resetRanking()">Resetar Semana</button>
@@ -300,7 +239,7 @@ th{color:#888;font-size:10px;letter-spacing:0.6px}
       </div>
     </div>
     <div class="card">
-      <h3>⚙️ Ações Rápidas</h3>
+      <h3>âš™ï¸ AÃ§Ãµes RÃ¡pidas</h3>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn-danger" onclick="fecharTodasSalas()">Fechar Todas as Salas</button>
         <button class="btn-danger" onclick="kickTodos()">Kickar Todos Jogadores</button>
@@ -398,7 +337,7 @@ async function loadSalas(){
   const r=await api('/admin/api/salas'); const j=await r.json();
   const div=document.getElementById('lista-salas-admin');
   if(j.salas.length===0){ div.innerHTML='<span style=opacity:0.5>Nenhuma sala ativa</span>'; return; }
-  div.innerHTML=j.salas.map(s=>`<div style="background:#111;border:1px solid #222;border-radius:8px;padding:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><b>${s.nome}</b> <span class=badge style=background:#222>${s.modo}</span> <span class=badge style="background:${s.estado==='jogando'?'#00ffcc':'#333'};color:${s.estado==='jogando'?'#000':'#fff'}">${s.estado.toUpperCase()}</span> <span style="font-size:11px;opacity:0.6">${s.qtd}/${s.max} - ${s.privacidade}</span><br><span style="font-size:11px;opacity:0.5">${s.jogadores.map(j=>j.nome+(j.posicao==='goleiro'?' 🧤':'')).join(', ')}</span></div><div style="display:flex;gap:4px"><button class="btn-danger" style="padding:4px 8px;font-size:10px" onclick="fecharSala('${s.nome}')">Fechar</button></div></div>`).join('');
+  div.innerHTML=j.salas.map(s=>`<div style="background:#111;border:1px solid #222;border-radius:8px;padding:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center"><div><b>${s.nome}</b> <span class=badge style=background:#222>${s.modo}</span> <span class=badge style="background:${s.estado==='jogando'?'#00ffcc':'#333'};color:${s.estado==='jogando'?'#000':'#fff'}">${s.estado.toUpperCase()}</span> <span style="font-size:11px;opacity:0.6">${s.qtd}/${s.max} - ${s.privacidade}</span><br><span style="font-size:11px;opacity:0.5">${s.jogadores.map(j=>j.nome+(j.posicao==='goleiro'?' ðŸ§¤':'')).join(', ')}</span></div><div style="display:flex;gap:4px"><button class="btn-danger" style="padding:4px 8px;font-size:10px" onclick="fecharSala('${s.nome}')">Fechar</button></div></div>`).join('');
 }
 async function fecharSala(nome){ if(!confirm('Fechar sala '+nome+' ?')) return; await api('/admin/api/salas/fechar',{method:'POST', body:JSON.stringify({nome})}); loadSalas(); loadStats(); }
 async function fecharTodasSalas(){ if(!confirm('Fechar TODAS as salas?')) return; await api('/admin/api/salas/fechar_todas',{method:'POST'}); loadSalas(); loadStats(); }
@@ -454,7 +393,7 @@ async def admin_api_contas_delete(request):
                 try: await sio.emit('logout_ok', {}, to=sid)
                 except: pass
         return web.json_response({'ok': True})
-    return web.json_response({'ok': False, 'msg': 'Conta não existe'}, status=404)
+    return web.json_response({'ok': False, 'msg': 'Conta nÃ£o existe'}, status=404)
 
 async def admin_api_contas_edit(request):
     if not check_admin(request): return web.Response(status=401)
@@ -474,7 +413,7 @@ async def admin_api_contas_create(request):
     nick = str(data.get('nick','')).upper()[:12]
     senha = str(data.get('senha','')).strip()
     if len(nick)<3 or len(senha)<3: return web.json_response({'ok': False}, status=400)
-    if nick in contas_global: return web.json_response({'ok': False, 'msg': 'Já existe'}, status=400)
+    if nick in contas_global: return web.json_response({'ok': False, 'msg': 'JÃ¡ existe'}, status=400)
     contas_global[nick]={'senha': senha, 'criado_em': datetime.now().isoformat(), 'ultimo_login': ''}
     save_contas(contas_global)
     return web.json_response({'ok': True})
@@ -532,7 +471,7 @@ async def admin_api_kick(request):
             await sair_sala(sid)
             try: await sio.emit('forcar_volta_lobby', {}, to=sid)
             except: pass
-    # Também kick por nome em salas
+    # TambÃ©m kick por nome em salas
     for nome, jogo in salas.items():
         for sid, j in list(jogo['jogadores'].items()):
             if j['nome']==nick:
@@ -563,7 +502,7 @@ async def admin_api_ranking_reset(request):
 
 async def admin_contas_json(request):
     if not check_admin(request): return web.Response(status=401, text="Unauthorized - ?key=futgraal123")
-    # Agora ele entrega os dados diretamente da memória (que veio do MongoDB)
+    # Agora ele entrega os dados diretamente da memÃ³ria (que veio do MongoDB)
     return web.json_response(contas_global)
 
 async def admin_ranking_json(request):
@@ -594,8 +533,6 @@ app.router.add_post('/admin/api/ranking/reset', admin_api_ranking_reset)
 async def enviar_lista_salas():
     lista=[]
     for nome,s in salas.items():
-        if not pode_listar_sala(nome):
-            continue
         cfg=s.get('config',{})
         lista.append({
             'nome':nome,
@@ -612,7 +549,7 @@ async def enviar_lista_salas():
             'tem_torneio': cfg.get('torneio_ativo',False)
         })
     await sio.emit('salas_atualizadas', lista)
-    # envia ranking também
+    # envia ranking tambÃ©m
     await sio.emit('ranking_atualizado', ranking_global)
 
 def tem_goleiro_humano(jogo, equipa):
@@ -653,7 +590,7 @@ def calcular_mvp(jogo):
     return {'nome': mvp_nome, 'pontos': scores[mvp_nome], 'scores': scores}
 
 def sanitize_jogo_for_emit(jogo):
-    # remove campos não serializáveis como set()
+    # remove campos nÃ£o serializÃ¡veis como set()
     try:
         return {
             'bola': jogo.get('bola'),
@@ -793,7 +730,7 @@ async def processo_golo(nome_sala, equipa_gol):
     if ultimo and ultimo.get('equipa')!=equipa_gol:
         is_gol_contra=True
 
-    # calcula assistencia: penultimo toque do mesmo time (só se não for contra)
+    # calcula assistencia: penultimo toque do mesmo time (sÃ³ se nÃ£o for contra)
     toques = est.get('toques_recentes',[])
     if len(toques)>=2 and not is_gol_contra:
         if ultimo:
@@ -810,7 +747,7 @@ async def processo_golo(nome_sala, equipa_gol):
         if sid_jog and sid_jog in jogo['jogadores']:
             jogo['jogadores'][sid_jog]['gols_contra']=jogo['jogadores'][sid_jog].get('gols_contra',0)+1
             gc=jogo['jogadores'][sid_jog]['gols_contra']
-            await sio.emit('nova_mensagem', {'nome':'VAR','mensagem': f"⚠️ {nome_jog} fez gol contra! ({gc}/3)",'cor':'#ff3b30'}, room=nome_sala)
+            await sio.emit('nova_mensagem', {'nome':'VAR','mensagem': f"âš ï¸ {nome_jog} fez gol contra! ({gc}/3)",'cor':'#ff3b30'}, room=nome_sala)
             if gc>=3:
                 # transforma em espectador (anti-troll)
                 try:
@@ -820,10 +757,10 @@ async def processo_golo(nome_sala, equipa_gol):
                     espectadores_sala[sid_jog]=nome_sala
                     await sio.enter_room(sid_jog, nome_sala)
                     await sio.emit('voce_e_espectador', {'espectador':True,'motivo':'3 gols contra - anti-troll'}, to=sid_jog)
-                    await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f"🚫 {nome_jog} virou espectador por 3 gols contra!",'cor':'#ffea00'}, room=nome_sala)
+                    await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f"ðŸš« {nome_jog} virou espectador por 3 gols contra!",'cor':'#ffea00'}, room=nome_sala)
                 except Exception as e:
                     print("Erro anti-troll contra", e)
-        # mesmo sendo contra, conta gol pro placar (já vai contar abaixo) e não conta como gol pro artilheiro
+        # mesmo sendo contra, conta gol pro placar (jÃ¡ vai contar abaixo) e nÃ£o conta como gol pro artilheiro
         est['gols_jogadores'][f"{nome_jog} (GC)"]=est['gols_jogadores'].get(f"{nome_jog} (GC)",0)+1
     else:
         if ultimo and ultimo.get('equipa')==equipa_gol:
@@ -894,10 +831,10 @@ async def processar_torneio_gol(nome_sala, vencedor):
         partida['vencedor']=partida['timeB']
         partida['placar']=f"{jogo['placar']['esquerda']}-{jogo['placar']['direita']}"
     else:
-        # empate no torneio = prorrogação ou pênaltis - escolhe aleatório pro MVP
+        # empate no torneio = prorrogaÃ§Ã£o ou pÃªnaltis - escolhe aleatÃ³rio pro MVP
         partida['vencedor']=random.choice([partida['timeA'],partida['timeB']])
         partida['placar']=f"{jogo['placar']['esquerda']}-{jogo['placar']['direita']} (P)"
-    # avança
+    # avanÃ§a
     torneio['partida_atual_idx']+=1
     payload_stats=build_stats_payload(jogo)
     await sio.emit('fim_jogo_torneio', {
@@ -909,10 +846,10 @@ async def processar_torneio_gol(nome_sala, vencedor):
     }, room=nome_sala)
     # verifica se rodada acabou
     if torneio['partida_atual_idx'] >= len(torneio['chaves'][rodada_atual]):
-        # monta próxima rodada
+        # monta prÃ³xima rodada
         vencedores=[p['vencedor'] for p in torneio['chaves'][rodada_atual] if p.get('vencedor')]
         if len(vencedores)==1:
-            # campeão
+            # campeÃ£o
             torneio['campeao']=vencedores[0]
             torneio['estado']='finalizado'
             await sio.emit('torneio_finalizado', {'campeao': vencedores[0], 'torneio': torneio}, room=nome_sala)
@@ -928,7 +865,7 @@ async def processar_torneio_gol(nome_sala, vencedor):
             torneio['chaves'].append(nova_rodada)
             torneio['rodada_atual']+=1
             torneio['partida_atual_idx']=0
-    # prepara próxima partida
+    # prepara prÃ³xima partida
     if torneio['estado']!='finalizado':
         prox = torneio['chaves'][torneio['rodada_atual']][torneio['partida_atual_idx']]
         jogo['config']['nome_time_esq']=prox['timeA']
@@ -990,7 +927,7 @@ async def loop_fisica():
                 estado=jogo['config']['estado']
                 part=jogo['estado_partida']
                 if estado=='espera' or part in ['comemorando','fim_jogo']:
-                    # FIX: não spamma estado_espera 60x por segundo - só a cada 0.8s
+                    # FIX: nÃ£o spamma estado_espera 60x por segundo - sÃ³ a cada 0.8s
                     now_ts = asyncio.get_event_loop().time()
                     if 'last_espera_emit' not in jogo or now_ts - jogo['last_espera_emit'] > 0.8:
                         jogo['last_espera_emit'] = now_ts
@@ -1118,7 +1055,7 @@ async def login(sid, dados):
                 logados.pop(s, None)
                 await sair_sala(s)
         if nick not in contas_global:
-            await sio.emit('login_erro', {'msg': f'Conta {nick} não existe! Vá em CRIAR CONTA.'}, to=sid); return
+            await sio.emit('login_erro', {'msg': f'Conta {nick} nÃ£o existe! VÃ¡ em CRIAR CONTA.'}, to=sid); return
         if contas_global[nick].get('senha') != senha:
             await sio.emit('login_erro', {'msg': 'Senha incorreta!'}, to=sid); return
         logados[sid] = nick
@@ -1141,7 +1078,7 @@ async def criar_conta(sid, dados):
         if len(senha) < 3:
             await sio.emit('login_erro', {'msg': 'Senha precisa ter 3+ letras'}, to=sid); return
         if nick in contas_global:
-            await sio.emit('login_erro', {'msg': f'Nick {nick} já existe! Vá em ENTRAR pra logar.'}, to=sid); return
+            await sio.emit('login_erro', {'msg': f'Nick {nick} jÃ¡ existe! VÃ¡ em ENTRAR pra logar.'}, to=sid); return
         for s, n in list(logados.items()):
             if n == nick and s != sid:
                 logados.pop(s, None)
@@ -1160,7 +1097,7 @@ async def criar_conta(sid, dados):
 async def entrar_jogo(sid,dados):
     try:
         if sid not in logados:
-            await sio.emit('erro_entrada', {'msg': 'Faça login primeiro! Crie conta na tela inicial'}, to=sid); return
+            await sio.emit('erro_entrada', {'msg': 'FaÃ§a login primeiro! Crie conta na tela inicial'}, to=sid); return
         nick_logado = logados[sid]
         nome_sala=str(dados.get('sala','GERAL')).upper()[:12]
         nome_jog = nick_logado[:10].upper()
@@ -1169,7 +1106,7 @@ async def entrar_jogo(sid,dados):
         if posicao not in ['linha','goleiro']: posicao='linha'
         for s_id, j in list((salas.get(nome_sala, {}).get('jogadores', {})).items()):
             if j.get('nome') == nome_jog and s_id != sid:
-                await sio.emit('erro_entrada', {'msg': f'Nick {nome_jog} já está na sala!'}, to=sid); return
+                await sio.emit('erro_entrada', {'msg': f'Nick {nome_jog} jÃ¡ estÃ¡ na sala!'}, to=sid); return
         if nome_sala not in salas:
             jogo=criar_sala(nome_sala,sid,dados)
             await sio.enter_room(sid,nome_sala); jogadores_sala[sid]=nome_sala
@@ -1204,7 +1141,7 @@ async def iniciar_partida(sid, dados=None):
     nome=jogadores_sala[sid]; jogo=salas.get(nome)
     if not jogo or jogo['config']['owner']!=sid: await sio.emit('erro_entrada', {'msg':'So dono inicia!'}, to=sid); return
     if len(jogo['jogadores']) < 2:
-        await sio.emit('erro_entrada', {'msg':'Precisa de 2 jogadores ou mais pra começar!'}, to=sid)
+        await sio.emit('erro_entrada', {'msg':'Precisa de 2 jogadores ou mais pra comeÃ§ar!'}, to=sid)
         await sio.emit('estado_espera', {'config':jogo['config'],'jogadores':jogo['jogadores'],'espectadores':jogo['espectadores']}, room=nome)
         return
     jogo['config']['estado']='jogando'; jogo['estado_partida']='jogando'; jogo['tempo_restante']=jogo['config']['tempo_cfg']; jogo['placar']={'esquerda':0,'direita':0}
@@ -1253,9 +1190,9 @@ async def criar_torneio(sid, dados):
     times=[t[:10].upper() for t in times if t.strip()][:8]
     if len(times) < 4:
         await sio.emit('erro_entrada', {'msg':'Precisa 4 ou 8 times!'}, to=sid); return
-    # ajusta para potência de 2
+    # ajusta para potÃªncia de 2
     if len(times) not in [4,8]:
-        # completa até 4 ou 8
+        # completa atÃ© 4 ou 8
         if len(times) <=4:
             times=times[:4]
         else:
@@ -1330,7 +1267,7 @@ async def logout(sid, dados=None):
 @sio.event
 async def disconnect(sid):
     if sid in logados:
-        print(f"[DISCONNECT] {logados[sid]} - mantém conta mas remove da sala")
+        print(f"[DISCONNECT] {logados[sid]} - mantÃ©m conta mas remove da sala")
         del logados[sid]
     await sair_sala(sid)
 
@@ -1385,7 +1322,7 @@ async def chat_mensagem(sid,dados):
     if not j: return
     # anti-troll mute check
     if 'mutados' in j and sid in j['mutados']:
-        await sio.emit('nova_mensagem',{'nome':'SISTEMA','mensagem':'🔇 Você está mutado pelo dono!','cor':'#ff3b30'}, to=sid)
+        await sio.emit('nova_mensagem',{'nome':'SISTEMA','mensagem':'ðŸ”‡ VocÃª estÃ¡ mutado pelo dono!','cor':'#ff3b30'}, to=sid)
         return
     nome='?'
     cor='#fff'
@@ -1427,7 +1364,7 @@ async def kickar_jogador(sid,dados):
         sala=jogadores_sala[sid]
         jogo=salas.get(sala)
         if not jogo or jogo['config']['owner']!=sid: 
-            await sio.emit('erro_entrada', {'msg':'Só o dono pode kickar!'}, to=sid)
+            await sio.emit('erro_entrada', {'msg':'SÃ³ o dono pode kickar!'}, to=sid)
             return
         target_sid=dados.get('sid') or dados.get('target')
         if not target_sid: return
@@ -1440,7 +1377,7 @@ async def kickar_jogador(sid,dados):
         if target_sid in jogadores_sala:
             del jogadores_sala[target_sid]
         await sio.emit('forcar_volta_lobby', {'motivo': f'Kickado pelo dono {jogo["jogadores"][sid]["nome"]}'}, to=target_sid)
-        await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f'👢 {nome_kick} foi kickado pelo dono!','cor':'#ff3b30'}, room=sala)
+        await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f'ðŸ‘¢ {nome_kick} foi kickado pelo dono!','cor':'#ff3b30'}, room=sala)
         await sio.emit('estado_espera', {'config':jogo['config'],'jogadores':jogo['jogadores'],'espectadores':jogo['espectadores']}, room=sala)
         await enviar_lista_salas()
     except Exception as e:
@@ -1460,11 +1397,11 @@ async def mutar_jogador(sid,dados):
             jogo['mutados']=set()
         if target_sid in jogo['mutados']:
             jogo['mutados'].remove(target_sid)
-            await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f'🔊 {jogo["jogadores"].get(target_sid,{}).get("nome","Jogador")} foi desmutado!','cor':'#00ffcc'}, room=sala)
+            await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f'ðŸ”Š {jogo["jogadores"].get(target_sid,{}).get("nome","Jogador")} foi desmutado!','cor':'#00ffcc'}, room=sala)
             await sio.emit('mutado_status', {'sid':target_sid,'mutado':False}, room=sala)
         else:
             jogo['mutados'].add(target_sid)
-            await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f'🔇 {jogo["jogadores"].get(target_sid,{}).get("nome","Jogador")} foi mutado pelo dono!','cor':'#ffea00'}, room=sala)
+            await sio.emit('nova_mensagem', {'nome':'SISTEMA','mensagem': f'ðŸ”‡ {jogo["jogadores"].get(target_sid,{}).get("nome","Jogador")} foi mutado pelo dono!','cor':'#ffea00'}, room=sala)
             await sio.emit('mutado_status', {'sid':target_sid,'mutado':True}, room=sala)
     except Exception as e:
         print("Erro mutar", e)
@@ -1474,11 +1411,11 @@ async def mutar_jogador(sid,dados):
 async def voltar_sala_espera(sid):
     sala = jogadores_sala.get(sid) or espectadores_sala.get(sid)
     if not sala or sala not in salas:
-        # permite voltar mesmo se sid não está mais mapeado (caso tenha disconnect)
-        # tenta achar pela sala da mensagem anterior - já coberto
+        # permite voltar mesmo se sid nÃ£o estÃ¡ mais mapeado (caso tenha disconnect)
+        # tenta achar pela sala da mensagem anterior - jÃ¡ coberto
         return
     jogo = salas[sala]
-    # se torneio ativo, não reseta, vai pra próxima partida
+    # se torneio ativo, nÃ£o reseta, vai pra prÃ³xima partida
     if jogo['config'].get('torneio_ativo') and jogo['config'].get('torneio') and jogo['config']['torneio']['estado']!='finalizado':
         await sio.emit('forcar_volta_lobby', room=sala)
         await sio.emit('estado_jogo', sanitize_jogo_for_emit(jogo), room=sala)
@@ -1507,126 +1444,6 @@ async def mandar_emote(sid, dados):
             # Pega o emote e define um temporizador de ~2 segundos (120 frames a 60fps)
             jogo['jogadores'][sid]['emote'] = str(dados.get('emote', ''))[:2]
             jogo['jogadores'][sid]['emote_timer'] = 120
-
-
-# ==================== NOVOS EVENTOS V2 - LOJA / FUTCOINS / BETA ====================
-@sio.event
-async def get_loja(sid):
-    try:
-        # verifica expiração 24h
-        import datetime
-        try:
-            expira = datetime.datetime.fromisoformat(loja_atual['expira_em'])
-            if datetime.datetime.now() > expira:
-                gerar_loja_diaria()
-        except:
-            gerar_loja_diaria()
-        await sio.emit('loja_dados', loja_atual, to=sid)
-    except Exception as e:
-        print("Erro get_loja", e)
-
-@sio.event
-async def get_futcoins(sid):
-    # Tenta achar nick de 3 jeitos: sala, logados, ou pelo sid salvo
-    nick = None
-    # 1. Nas salas
-    for jogo in salas.values():
-        if sid in jogo.get('jogadores', {}):
-            nick = jogo['jogadores'][sid].get('nome')
-            break
-        if sid in jogo.get('espectadores', {}):
-            nick = jogo['espectadores'][sid].get('nome')
-            break
-    # 2. Nos logados (lobby)
-    if not nick and sid in logados:
-        nick = logados[sid]
-    # 3. Se ainda não achou, tenta pelo contas_global se o sid estiver no logados inverso
-    if nick and nick in contas_global:
-        await sio.emit('futcoins_update', {
-            'futcoins': contas_global[nick].get('futcoins', ConfigV2.FUTCOINS_INICIAL), 
-            'inventario': contas_global[nick].get('inventario',[]),
-            'nick': nick
-        }, to=sid)
-    else:
-        # Se não achou nick, ainda manda 0 para o HUD aparecer e debugar
-        # O login_ok vai mandar o nick correto depois
-        for n, dados in contas_global.items():
-            # Se a conta tem esse sid logado (fallback)
-            if dados.get('last_sid') == sid:
-                await sio.emit('futcoins_update', {
-                    'futcoins': dados.get('futcoins', ConfigV2.FUTCOINS_INICIAL),
-                    'inventario': dados.get('inventario',[]),
-                    'nick': n
-                }, to=sid)
-                return
-
-# Guarda sid no login para achar depois
-@sio.event
-async def login(sid, dados):
-    # Chama o login original se existir, mas também guarda logados
-    try:
-        nick = dados.get('nick','').upper().strip()
-        if nick:
-            logados[sid] = nick
-            if nick in contas_global:
-                contas_global[nick]['last_sid'] = sid
-    except:
-        pass
-    # Deixa o handler original de login/criar_conta cuidar do resto (se houver)
-    # Vamos emitir futcoins após login
-    try:
-        await asyncio.sleep(0.3)
-        await get_futcoins(sid)
-    except Exception as e:
-        print("Erro get_futcoins", e)
-
-@sio.event
-async def comprar_item(sid, dados):
-    try:
-        item_id = dados.get('id')
-        # acha nick
-        nick = None
-        sala_atual = jogadores_sala.get(sid)
-        if sala_atual and sala_atual in salas:
-            jogo = salas[sala_atual]
-            if sid in jogo.get('jogadores', {}):
-                nick = jogo['jogadores'][sid].get('nome')
-        if not nick or nick not in contas_global:
-            await sio.emit('compra_erro', {'msg':'Conta não encontrada'}, to=sid)
-            return
-        conta = contas_global[nick]
-        item = next((i for i in loja_atual['itens'] if i['id']==item_id), None)
-        if not item:
-            await sio.emit('compra_erro', {'msg':'Item não está na loja hoje'}, to=sid)
-            return
-        if conta.get('futcoins',0) < item['preco']:
-            await sio.emit('compra_erro', {'msg': f'Precisa de {item["preco"]} futcoins, você tem {conta.get("futcoins",0)}'}, to=sid)
-            return
-        conta['futcoins'] -= item['preco']
-        conta.setdefault('inventario', []).append(item['id'])
-        save_contas(contas_global)
-        await sio.emit('compra_ok', {'item': item, 'futcoins': conta['futcoins'], 'inventario': conta['inventario']}, to=sid)
-        if sala_atual:
-            await sio.emit('nova_mensagem', {'nome':'LOJA','mensagem': f'{nick} comprou {item["nome"]} {item["emoji"]} por {item["preco"]} futcoins!','cor':'#ffea00'}, room=sala_atual)
-    except Exception as e:
-        print("Erro comprar_item", e)
-        traceback.print_exc()
-
-# Rota extra para beta e owner - mesma página mas front pode detectar
-async def index_beta(request):
-    p=os.path.join(os.path.dirname(__file__),'index.html')
-    return web.FileResponse(p) if os.path.exists(p) else web.Response(text="index.html nao encontrado",status=404)
-
-# Adiciona rotas se ainda não existirem (evita duplicar)
-try:
-    app.router.add_get('/beta', index_beta)
-    app.router.add_get('/owner', index_beta)
-    print("[ROTAS V2] /beta e /owner registradas")
-except:
-    pass
-
-# ==================== FIM NOVOS EVENTOS V2 ====================
-
 
 async def start(app):
     await init_mongodb() # <-- Espera o Banco de Dados carregar primeiro!
