@@ -4,65 +4,9 @@ from datetime import datetime, timedelta
 import socketio
 from aiohttp import web
 
-
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='aiohttp')
 app = web.Application()
 sio.attach(app)
-
-# ==================== CONFIG V2 - OPÇÃO B ====================
-class ConfigV2:
-    ENV = os.environ.get("ENV", "production") # production | beta | dev
-    BETA_PREFIX = "BETA_"
-    OWNER_SALA = "OWNER_LAB"
-    FUTCOINS_INICIAL = 100
-    LOJA_HORAS = 24
-
-print(f"[CONFIG V2] ENV={ConfigV2.ENV} | Beta prefix={ConfigV2.BETA_PREFIX} | Owner sala={ConfigV2.OWNER_SALA}")
-
-# Helpers filtro salas
-def sala_eh_beta(nome):
-    return nome.upper().startswith(ConfigV2.BETA_PREFIX)
-
-def sala_eh_owner(nome):
-    return nome.upper() == ConfigV2.OWNER_SALA
-
-def pode_listar_sala(nome):
-    # OWNER_LAB nunca aparece na lista
-    if sala_eh_owner(nome):
-        return False
-    # Em produção, esconde salas BETA_
-    if ConfigV2.ENV == "production" and sala_eh_beta(nome):
-        return False
-    # Em beta, mostra tudo
-    return True
-
-# Economia
-import datetime as _dt
-ITENS_BASE = [
-  {"id":"hat_cap", "nome":"Bone Estiloso", "tipo":"hat", "preco":50, "raridade":"comum", "emoji":"🧢"},
-  {"id":"hat_crown", "nome":"Coroa", "tipo":"hat", "preco":500, "raridade":"lendario", "emoji":"👑"},
-  {"id":"skin_neon", "nome":"Rastro Neon", "tipo":"skin", "preco":200, "raridade":"raro", "emoji":"✨"},
-  {"id":"skin_fire", "nome":"Rastro Fogo", "tipo":"skin", "preco":350, "raridade":"epico", "emoji":"🔥"},
-  {"id":"emote_pack", "nome":"Pack Emotes", "tipo":"emote", "preco":100, "raridade":"comum", "emoji":"😂"},
-]
-loja_atual = {"itens": [], "expira_em": None, "gerada_em": None}
-
-def gerar_loja_diaria():
-    global loja_atual
-    import random, datetime
-    itens = random.sample(ITENS_BASE, k=min(4, len(ITENS_BASE)))
-    agora = datetime.datetime.now()
-    loja_atual = {
-        "itens": itens,
-        "gerada_em": agora.isoformat(),
-        "expira_em": (agora + datetime.timedelta(hours=ConfigV2.LOJA_HORAS)).isoformat()
-    }
-    print(f"[LOJA] Nova loja: {[i['id'] for i in itens]}")
-    return loja_atual
-
-gerar_loja_diaria()
-# ==================== FIM CONFIG V2 ====================
-
 
 W,H = 800,600
 ATR_BOLA, ATR_JOG = 0.96, 0.85
@@ -72,8 +16,6 @@ salas = {}
 jogadores_sala = {}
 espectadores_sala = {}
 torneios = {}
-
-
 
 # 1. CONEXÃO COM O MONGODB (O Render vai ler isto das Variáveis de Ambiente)
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://onoob371_db_user:banana+12345@cluster0.owtaogx.mongodb.net/?appName=Cluster0")
@@ -112,11 +54,7 @@ async def init_mongodb():
         doc_c = await db.sistema.find_one({"_id": "contas"})
         if doc_c: 
             contas_global = doc_c.get("json", {})
-            # V2 - migra contas antigas para futcoins
-            for nick in contas_global:
-                if 'futcoins' not in contas_global[nick]:
-                    contas_global[nick]['futcoins'] = ConfigV2.FUTCOINS_INICIAL
-                    contas_global[nick]['inventario'] = []
+
         
         doc_r = await db.sistema.find_one({"_id": "ranking"})
         if doc_r: 
@@ -198,7 +136,6 @@ def update_ranking_resultados(jogo, vencedor):
                 update_ranking_derrota(nome,1)
     except Exception as e:
         print("Erro ranking resultados", e)
-
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASS", "futgraal123")  # troque aqui
 
@@ -589,13 +526,9 @@ app.router.add_get('/admin/api/ranking', admin_api_ranking)
 app.router.add_post('/admin/api/ranking/reset', admin_api_ranking_reset)
 # ============== FIM ADMIN ==============
 
-
-
 async def enviar_lista_salas():
     lista=[]
     for nome,s in salas.items():
-        if not pode_listar_sala(nome):
-            continue
         cfg=s.get('config',{})
         lista.append({
             'nome':nome,
@@ -1469,7 +1402,6 @@ async def mutar_jogador(sid,dados):
     except Exception as e:
         print("Erro mutar", e)
 
-
 @sio.event
 async def voltar_sala_espera(sid):
     sala = jogadores_sala.get(sid) or espectadores_sala.get(sid)
@@ -1507,126 +1439,6 @@ async def mandar_emote(sid, dados):
             # Pega o emote e define um temporizador de ~2 segundos (120 frames a 60fps)
             jogo['jogadores'][sid]['emote'] = str(dados.get('emote', ''))[:2]
             jogo['jogadores'][sid]['emote_timer'] = 120
-
-
-# ==================== NOVOS EVENTOS V2 - LOJA / FUTCOINS / BETA ====================
-@sio.event
-async def get_loja(sid):
-    try:
-        # verifica expiração 24h
-        import datetime
-        try:
-            expira = datetime.datetime.fromisoformat(loja_atual['expira_em'])
-            if datetime.datetime.now() > expira:
-                gerar_loja_diaria()
-        except:
-            gerar_loja_diaria()
-        await sio.emit('loja_dados', loja_atual, to=sid)
-    except Exception as e:
-        print("Erro get_loja", e)
-
-@sio.event
-async def get_futcoins(sid):
-    # Tenta achar nick de 3 jeitos: sala, logados, ou pelo sid salvo
-    nick = None
-    # 1. Nas salas
-    for jogo in salas.values():
-        if sid in jogo.get('jogadores', {}):
-            nick = jogo['jogadores'][sid].get('nome')
-            break
-        if sid in jogo.get('espectadores', {}):
-            nick = jogo['espectadores'][sid].get('nome')
-            break
-    # 2. Nos logados (lobby)
-    if not nick and sid in logados:
-        nick = logados[sid]
-    # 3. Se ainda não achou, tenta pelo contas_global se o sid estiver no logados inverso
-    if nick and nick in contas_global:
-        await sio.emit('futcoins_update', {
-            'futcoins': contas_global[nick].get('futcoins', ConfigV2.FUTCOINS_INICIAL), 
-            'inventario': contas_global[nick].get('inventario',[]),
-            'nick': nick
-        }, to=sid)
-    else:
-        # Se não achou nick, ainda manda 0 para o HUD aparecer e debugar
-        # O login_ok vai mandar o nick correto depois
-        for n, dados in contas_global.items():
-            # Se a conta tem esse sid logado (fallback)
-            if dados.get('last_sid') == sid:
-                await sio.emit('futcoins_update', {
-                    'futcoins': dados.get('futcoins', ConfigV2.FUTCOINS_INICIAL),
-                    'inventario': dados.get('inventario',[]),
-                    'nick': n
-                }, to=sid)
-                return
-
-# Guarda sid no login para achar depois
-@sio.event
-async def login(sid, dados):
-    # Chama o login original se existir, mas também guarda logados
-    try:
-        nick = dados.get('nick','').upper().strip()
-        if nick:
-            logados[sid] = nick
-            if nick in contas_global:
-                contas_global[nick]['last_sid'] = sid
-    except:
-        pass
-    # Deixa o handler original de login/criar_conta cuidar do resto (se houver)
-    # Vamos emitir futcoins após login
-    try:
-        await asyncio.sleep(0.3)
-        await get_futcoins(sid)
-    except Exception as e:
-        print("Erro get_futcoins", e)
-
-@sio.event
-async def comprar_item(sid, dados):
-    try:
-        item_id = dados.get('id')
-        # acha nick
-        nick = None
-        sala_atual = jogadores_sala.get(sid)
-        if sala_atual and sala_atual in salas:
-            jogo = salas[sala_atual]
-            if sid in jogo.get('jogadores', {}):
-                nick = jogo['jogadores'][sid].get('nome')
-        if not nick or nick not in contas_global:
-            await sio.emit('compra_erro', {'msg':'Conta não encontrada'}, to=sid)
-            return
-        conta = contas_global[nick]
-        item = next((i for i in loja_atual['itens'] if i['id']==item_id), None)
-        if not item:
-            await sio.emit('compra_erro', {'msg':'Item não está na loja hoje'}, to=sid)
-            return
-        if conta.get('futcoins',0) < item['preco']:
-            await sio.emit('compra_erro', {'msg': f'Precisa de {item["preco"]} futcoins, você tem {conta.get("futcoins",0)}'}, to=sid)
-            return
-        conta['futcoins'] -= item['preco']
-        conta.setdefault('inventario', []).append(item['id'])
-        save_contas(contas_global)
-        await sio.emit('compra_ok', {'item': item, 'futcoins': conta['futcoins'], 'inventario': conta['inventario']}, to=sid)
-        if sala_atual:
-            await sio.emit('nova_mensagem', {'nome':'LOJA','mensagem': f'{nick} comprou {item["nome"]} {item["emoji"]} por {item["preco"]} futcoins!','cor':'#ffea00'}, room=sala_atual)
-    except Exception as e:
-        print("Erro comprar_item", e)
-        traceback.print_exc()
-
-# Rota extra para beta e owner - mesma página mas front pode detectar
-async def index_beta(request):
-    p=os.path.join(os.path.dirname(__file__),'index.html')
-    return web.FileResponse(p) if os.path.exists(p) else web.Response(text="index.html nao encontrado",status=404)
-
-# Adiciona rotas se ainda não existirem (evita duplicar)
-try:
-    app.router.add_get('/beta', index_beta)
-    app.router.add_get('/owner', index_beta)
-    print("[ROTAS V2] /beta e /owner registradas")
-except:
-    pass
-
-# ==================== FIM NOVOS EVENTOS V2 ====================
-
 
 async def start(app):
     await init_mongodb() # <-- Espera o Banco de Dados carregar primeiro!
